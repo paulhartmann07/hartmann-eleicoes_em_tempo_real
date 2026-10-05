@@ -74,7 +74,7 @@ def buscar_abrangencia(local):
     try:
         resp = requests.get(url, headers=headers, timeout=5)
         if resp.status_code == 200:
-            pst, candidatos = processar_json_tse(resp.json(), limit=2)
+            pst, candidatos = processar_json_tse(resp.json(), limit=5)
             return local, {'apurado': pst, 'candidatos': candidatos}
         elif resp.status_code == 404:
             quarentena_404[local] = agora + 180
