@@ -3,378 +3,280 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Apuração Presidencial 2026 - Completa</title>
-    
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <title>Apuração Eleições Brasil</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
     <style>
-        /* Cabeçalho superior com título e créditos */
-        .header-top {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-bottom: 15px;
+        :root {
+            --azul: #0056b3; --azul-esc: #004085; --verde: #28a745; --vermelho: #d9381e;
+            --texto: #1c1e21; --forte: #050505; --cinza: #65676b; --cinza2: #666;
+            --borda: #e4e6eb; --borda-input: #ced0d4; --fundo: #f0f2f5; --suave: #f8f9fa;
+            --sombra: 0 4px 12px rgba(0,0,0,0.05);
         }
-        .header-top h2 {
-            margin: 0;
-        }
-        .credits-text {
-            font-size: 13px;
-            font-weight: 600;
-            color: #65676b;
-        }
-        .credits-text a {
-            color: #0056b3;
-            text-decoration: none;
-            transition: color 0.2s ease;
-        }
-        .credits-text a:hover {
-            text-decoration: underline;
-            color: #004085;
-        }
-        
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 15px; background: #f0f2f5; color: #1c1e21; }
-        
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 15px; background: var(--fundo); color: var(--texto); }
+        .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+        /* Cabeçalho */
+        .header-top { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; }
+        .header-top h2 { margin: 0; }
+        .credits-text { font-size: 13px; font-weight: 600; color: var(--cinza); }
+        .credits-text a { color: var(--azul); text-decoration: none; transition: color 0.2s ease; }
+        .credits-text a:hover { text-decoration: underline; color: var(--azul-esc); }
+
+        /* Cards principais */
         .header-dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin-bottom: 15px; }
-        .card { background: #ffffff; padding: 16px 18px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-left: 5px solid #0056b3; }
-        .card.apuracao { border-left-color: #28a745; }
-        .card.lider { border-left-color: #0056b3; }
-        .card.segundo { border-left-color: #d9381e; }
-        
-        .card-title { font-size: 11px; font-weight: 600; text-transform: uppercase; color: #65676b; margin-bottom: 4px; }
-        .card-value { font-size: 20px; font-weight: 700; color: #050505; }
-        .card-sub { font-size: 12px; color: #65676b; margin-top: 4px; margin-bottom: 6px; }
+        .card { background: #fff; padding: 16px 18px; border-radius: 10px; box-shadow: var(--sombra); border-left: 5px solid var(--azul); }
+        .card.apuracao { border-left-color: var(--verde); }
+        .card.segundo { border-left-color: var(--vermelho); }
+        .card-title { font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--cinza); margin-bottom: 4px; }
+        .card-value { font-size: 20px; font-weight: 700; color: var(--forte); }
+        .card-unit { font-size: 13px; font-weight: 500; color: var(--cinza2); }
+        .card-sub { font-size: 12px; color: var(--cinza); margin-top: 4px; margin-bottom: 6px; }
+        .card-sub.destaque { color: var(--azul); font-weight: 600; }
 
-        .progress-bar-bg { width: 100%; height: 8px; background-color: #e4e6eb; border-radius: 4px; overflow: hidden; margin-top: 4px; }
+        /* Barras de progresso */
+        .progress-bar-bg { width: 100%; height: 8px; background-color: var(--borda); border-radius: 4px; overflow: hidden; margin-top: 4px; }
+        .progress-bar-bg.bar-5 { height: 5px; }
+        .progress-bar-bg.bar-6 { height: 6px; }
         .progress-bar-fill { height: 100%; border-radius: 4px; transition: width 0.6s ease-in-out, background-color 0.3s ease; }
-        .fill-apuracao { background-color: #28a745; }
+        .fill-apuracao { background-color: var(--verde); }
 
+        /* Cards de 3º, 4º e 5º lugar */
+        .header-outros-candidatos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px; }
+        .card-outro { background: #fff; padding: 10px 12px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border-left: 4px solid #6c757d; overflow: hidden; }
+        .card-title-sm { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--cinza); margin-bottom: 2px; }
+        .card-value-sm, .card-sub-sm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .card-value-sm { font-size: 13px; font-weight: 700; color: var(--forte); }
+        .card-sub-sm { font-size: 11px; color: var(--cinza); margin-top: 2px; }
+
+        /* Barra de pesquisa de município */
+        .search-city-bar { background: #fff; padding: 12px 16px; border-radius: 10px; box-shadow: var(--sombra); margin-bottom: 15px; display: flex; flex-direction: column; gap: 8px; }
+        .search-title { font-size: 13px; font-weight: 700; color: var(--azul); text-transform: uppercase; }
+        .search-inputs-wrapper { display: flex; align-items: center; gap: 10px; width: 100%; }
+        .search-select, .search-input { padding: 10px 12px; font-size: 13px; border: 1px solid var(--borda-input); border-radius: 6px; outline: none; background: var(--suave); box-sizing: border-box; }
+        .search-select { min-width: 90px; font-weight: 700; }
+        .search-input { width: 100%; }
+        .search-btn { background: var(--azul); color: #fff; border: none; padding: 10px 18px; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer; transition: background 0.2s ease; white-space: nowrap; }
+        .search-btn:hover { background: var(--azul-esc); }
+
+        /* Autocompletar */
+        .autocomplete-container { position: relative; flex: 1; width: 100%; }
+        .autocomplete-items { position: absolute; top: 100%; left: 0; right: 0; z-index: 9999; display: none; max-height: 220px; overflow-y: auto; background: #fff; border: 1px solid var(--borda-input); border-top: none; border-radius: 0 0 8px 8px; box-shadow: 0 6px 16px rgba(0,0,0,0.15); }
+        .autocomplete-items div { padding: 12px 14px; cursor: pointer; font-size: 13px; border-bottom: 1px solid var(--fundo); transition: background 0.15s ease; }
+        .autocomplete-items div:hover { background-color: #e7f0fa; color: var(--azul); font-weight: 600; }
+
+        /* Barra de controles */
         .controls-bar { margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
-        .status-text { font-size: 13px; font-weight: 500; color: #65676b; background: #e4e6eb; padding: 6px 12px; border-radius: 6px; }
-        .status-text b { color: #1c1e21; }
+        .status-text { font-size: 13px; font-weight: 500; color: var(--cinza); background: var(--borda); padding: 6px 12px; border-radius: 6px; }
+        .status-text b { color: var(--texto); }
+        .status-prox { margin-left: 5px; color: var(--azul); }
+        .status-erro { margin-left: 5px; color: var(--vermelho); }
+        .toggle-container { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+        .toggle-group { display: flex; background: var(--borda); padding: 3px; border-radius: 8px; }
+        .btn-toggle { border: none; background: transparent; padding: 7px 12px; font-size: 12px; font-weight: 600; color: #4b4d4e; border-radius: 6px; cursor: pointer; transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease; }
+        .btn-toggle.active { background: #fff; color: var(--forte); box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+        .select-regiao-btn { background: #fff; border: 1px solid var(--borda-input); padding: 6px 10px; font-size: 12px; font-weight: 700; color: var(--texto); border-radius: 8px; cursor: pointer; outline: none; }
 
-        /* Cards secundários de 3º, 4º e 5º lugar */
-        .header-outros-candidatos { 
-            display: grid; 
-            grid-template-columns: repeat(3, 1fr); 
-            gap: 10px; 
-            margin-bottom: 15px; 
-        }
-        .card-outro { 
-            background: #ffffff; 
-            padding: 10px 12px; 
-            border-radius: 8px; 
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05); 
-            border-left: 4px solid #6c757d; 
-            overflow: hidden; 
-        }
-        .card-title-sm { 
-            font-size: 10px; 
-            font-weight: 700; 
-            text-transform: uppercase; 
-            color: #65676b; 
-            margin-bottom: 2px; 
-        }
-        .card-value-sm { 
-            font-size: 13px; 
-            font-weight: 700; 
-            color: #050505; 
-            white-space: nowrap; 
-            overflow: hidden; 
-            text-overflow: ellipsis; 
-        }
-        .card-sub-sm { 
-            font-size: 11px; 
-            color: #65676b; 
-            margin-top: 2px; 
-            white-space: nowrap; 
-            overflow: hidden; 
-            text-overflow: ellipsis; 
-        }
+        /* Mapa + sidebar */
+        .main-layout { display: flex; gap: 15px; align-items: flex-start; width: 100%; }
+        #map { flex: 1; height: 600px; width: 100%; border-radius: 10px; background: #e9e9ed; box-shadow: var(--sombra); }
+        .sidebar-regioes { width: 340px; max-height: 600px; overflow-y: auto; background: #fff; padding: 16px; border-radius: 10px; box-shadow: var(--sombra); box-sizing: border-box; }
+        .sidebar-regioes.hidden { display: none; }
+        .sidebar-title { font-size: 13px; font-weight: 700; text-transform: uppercase; color: var(--texto); margin-bottom: 10px; border-bottom: 2px solid var(--borda); padding-bottom: 6px; }
+        .regiao-card { background: var(--suave); border: 2px solid var(--borda); border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; cursor: pointer; transition: border-color 0.2s ease, background 0.2s ease; }
+        .regiao-card:hover { border-color: var(--azul); background: #f0f4f9; }
+        .regiao-card.active-region { border-color: var(--azul); background: #e7f0fa; }
+        .regiao-header small { font-weight: 400; color: var(--cinza2); }
+        .regiao-apuracao-box { margin-bottom: 12px; }
 
+        /* Linhas de candidato (sidebar e painel inferior) */
+        .cand-row { margin-bottom: 10px; }
+        .cargo-box .cand-row { font-size: 12px; }
+        .cand-head { display: flex; justify-content: space-between; margin-bottom: 4px; }
+        .muted { color: var(--cinza2); }
+        .apurado-mini { font-size: 11px; font-weight: 600; color: var(--verde); margin-bottom: 12px; }
+
+        /* Mensagens */
+        .msg { font-size: 13px; color: var(--cinza2); }
+        .msg-load { color: var(--azul); }
+        .msg-erro { color: var(--vermelho); }
+        .msg-sm { font-size: 11px; color: #888; }
+
+        /* Painel inferior de outros cargos */
+        .drawer-cargos { margin-top: 15px; background: #fff; border-radius: 10px; padding: 18px 20px; box-shadow: 0 4px 16px rgba(0,0,0,0.08); display: none; }
+        .drawer-cargos.active { display: block; }
+        .drawer-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--borda); padding-bottom: 8px; margin-bottom: 15px; }
+        .drawer-title { font-size: 16px; font-weight: 700; color: var(--forte); }
+        .btn-close { background: var(--borda); border: none; border-radius: 50%; width: 28px; height: 28px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .grid-cargos { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 15px; }
+        .cargo-box { background: var(--suave); border: 1px solid var(--borda); border-radius: 8px; padding: 12px 14px; }
+        .cargo-box-title { font-size: 13px; font-weight: 700; text-transform: uppercase; color: var(--azul); margin-bottom: 10px; border-bottom: 1px solid var(--borda); padding-bottom: 4px; }
+
+        /* Legenda e tooltip do mapa */
+        .legend { background: rgba(255,255,255,0.95); padding: 10px 14px; font-size: 11px; font-weight: 600; line-height: 18px; color: #333; box-shadow: 0 2px 10px rgba(0,0,0,0.15); border-radius: 8px; }
+        .legend-title { font-size: 12px; font-weight: 700; margin-bottom: 4px; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+        .legend i { width: 14px; height: 14px; float: left; margin-right: 6px; border-radius: 3px; }
+        .leaflet-tooltip hr { margin: 6px 0; }
+        .tip-cta { color: var(--azul); font-weight: bold; }
+
+
+        /* Seletor de eleição (ano + turno) */
+        .eleicao-bar { background: #fff; padding: 10px 16px; border-radius: 10px; box-shadow: var(--sombra); margin-bottom: 15px; display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+        .eleicao-label { font-size: 13px; font-weight: 700; color: var(--azul); text-transform: uppercase; }
+        .eleicao-info { font-size: 12px; color: var(--cinza); }
+        .btn-toggle:disabled { opacity: 0.45; cursor: not-allowed; }
+
+        /* Controle "voltar ao Brasil" no mapa do estado */
+        .controle-estado { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+        .btn-voltar { border: none; background: var(--azul); color: #fff; font-size: 12px; font-weight: 700; padding: 7px 12px; border-radius: 6px; cursor: pointer; }
+        .btn-voltar:hover { background: var(--azul-esc); }
+        .mapa-status { font-size: 11px; color: var(--cinza); max-width: 220px; text-align: right; }
+        .mapa-status:empty { display: none; }
+
+        /* Dispositivos móveis */
         @media (max-width: 900px) {
+            body { padding: 8px; }
             .header-outros-candidatos { gap: 6px; }
             .card-outro { padding: 8px; }
             .card-title-sm { font-size: 9px; }
             .card-value-sm { font-size: 11px; }
             .card-sub-sm { font-size: 10px; }
-        }
-
-        /* BARRA DE PESQUISA DE MUNICÍPIO OTIMIZADA */
-        .search-city-bar {
-            background: #ffffff;
-            padding: 12px 16px;
-            border-radius: 10px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-            margin-bottom: 15px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-        .search-title { font-size: 13px; font-weight: 700; color: #0056b3; text-transform: uppercase; }
-        .search-inputs-wrapper {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            width: 100%;
-        }
-        .search-select, .search-input {
-            padding: 10px 12px;
-            font-size: 13px;
-            border: 1px solid #ced0d4;
-            border-radius: 6px;
-            outline: none;
-            background: #f8f9fa;
-            box-sizing: border-box;
-        }
-        .search-select { min-width: 90px; font-weight: 700; }
-        
-        /* CONTÊINER DO AUTOCOMPLETAR CUSTOMIZADO */
-        .autocomplete-container {
-            position: relative;
-            flex: 1;
-            width: 100%;
-        }
-        .search-input {
-            width: 100%;
-        }
-        .autocomplete-items {
-            position: absolute;
-            border: 1px solid #ced0d4;
-            border-top: none;
-            z-index: 9999;
-            top: 100%;
-            left: 0;
-            right: 0;
-            background-color: #ffffff;
-            border-radius: 0 0 8px 8px;
-            max-height: 220px;
-            overflow-y: auto;
-            box-shadow: 0 6px 16px rgba(0,0,0,0.15);
-            display: none;
-        }
-        .autocomplete-items div {
-            padding: 12px 14px;
-            cursor: pointer;
-            font-size: 13px;
-            border-bottom: 1px solid #f0f2f5;
-            transition: background 0.15s ease;
-        }
-        .autocomplete-items div:hover {
-            background-color: #e7f0fa;
-            color: #0056b3;
-            font-weight: 600;
-        }
-
-        .search-btn {
-            background: #0056b3;
-            color: #ffffff;
-            border: none;
-            padding: 10px 18px;
-            border-radius: 6px;
-            font-size: 13px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: background 0.2s ease;
-            white-space: nowrap;
-        }
-        .search-btn:hover { background: #004085; }
-        
-        .toggle-container { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-        .toggle-group { display: flex; background: #e4e6eb; padding: 3px; border-radius: 8px; }
-        .btn-toggle { border: none; background: transparent; padding: 7px 12px; font-size: 12px; font-weight: 600; color: #4b4d4e; border-radius: 6px; cursor: pointer; transition: all 0.2s ease; }
-        .btn-toggle.active { background: #ffffff; color: #050505; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
-
-        .select-regiao-btn { background: #ffffff; border: 1px solid #ced0d4; padding: 6px 10px; font-size: 12px; font-weight: 700; color: #1c1e21; border-radius: 8px; cursor: pointer; outline: none; }
-
-        .main-layout { display: flex; gap: 15px; align-items: flex-start; width: 100%; }
-        #map { flex: 1; height: 600px; width: 100%; border-radius: 10px; background: #e9e9ed; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-
-        .sidebar-regioes { width: 340px; max-height: 600px; overflow-y: auto; background: #ffffff; padding: 16px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); box-sizing: border-box; }
-        .sidebar-regioes.hidden { display: none !important; }
-        .sidebar-title { font-size: 13px; font-weight: 700; text-transform: uppercase; color: #1c1e21; margin-bottom: 10px; border-bottom: 2px solid #e4e6eb; padding-bottom: 6px; }
-        
-        .regiao-card { background: #f8f9fa; border: 2px solid #e4e6eb; border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; cursor: pointer; transition: all 0.2s ease; }
-        .regiao-card:hover { border-color: #0056b3; background: #f0f4f9; }
-        .regiao-card.active-region { border-color: #0056b3; background: #e7f0fa; }
-
-        /* MODAL / DRAWER DE OUTROS CARGOS */
-        .drawer-cargos { margin-top: 15px; background: #ffffff; border-radius: 10px; padding: 18px 20px; box-shadow: 0 4px 16px rgba(0,0,0,0.08); display: none; }
-        .drawer-cargos.active { display: block; }
-        .drawer-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e4e6eb; padding-bottom: 8px; margin-bottom: 15px; }
-        .drawer-title { font-size: 16px; font-weight: 700; color: #050505; }
-        .btn-close { background: #e4e6eb; border: none; border-radius: 50%; width: 28px; height: 28px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-
-        .grid-cargos { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 15px; }
-        .cargo-box { background: #f8f9fa; border: 1px solid #e4e6eb; border-radius: 8px; padding: 12px 14px; }
-        .cargo-box-title { font-size: 13px; font-weight: 700; text-transform: uppercase; color: #0056b3; margin-bottom: 10px; border-bottom: 1px solid #e4e6eb; padding-bottom: 4px; }
-
-        .legend { background: rgba(255, 255, 255, 0.95); padding: 10px 14px; font-size: 11px; font-weight: 600; line-height: 18px; color: #333; box-shadow: 0 2px 10px rgba(0,0,0,0.15); border-radius: 8px; }
-        .legend-title { font-size: 12px; font-weight: 700; margin-bottom: 4px; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
-        .legend i { width: 14px; height: 14px; float: left; margin-right: 6px; border-radius: 3px; }
-
-        /* AJUSTES PARA DISPOSITIVOS MÓVEIS */
-        @media (max-width: 900px) {
-            body { padding: 8px; }
             .controls-bar { flex-direction: column; align-items: stretch; gap: 8px; }
+            .eleicao-bar { padding: 10px 12px; }
             .search-inputs-wrapper { flex-direction: column; align-items: stretch; }
             .search-select, .search-btn { width: 100%; }
-            .main-layout { display: block; } 
-            #map { width: 100% !important; height: 55vh !important; min-height: 450px !important; margin-bottom: 15px; }
-            .sidebar-regioes { width: 100% !important; max-height: none; }
+            .main-layout { display: block; }
+            #map { width: 100%; height: 55vh; min-height: 450px; margin-bottom: 15px; }
+            .sidebar-regioes { width: 100%; max-height: none; }
         }
     </style>
 </head>
 <body>
 
     <div class="header-top">
-        <h2>Apuração Presidencial em Tempo Real</h2>
+        <h2 id="titulo-pagina">Apuração Presidencial em Tempo Real</h2>
         <div class="credits-text">
             Design por <a href="https://www.linkedin.com/in/paulo-hartmann-sales" target="_blank" rel="noopener noreferrer">Paulo Henrique Hartmann Sales</a> em 04Out2026
         </div>
     </div>
-    
+
+    <div class="eleicao-bar">
+        <label for="select-ano" class="eleicao-label">Eleição</label>
+        <select id="select-ano" class="select-regiao-btn" onchange="selecionarEleicao(Number(this.value), eleicao.turno)">
+            <option>Carregando...</option>
+        </select>
+        <div class="toggle-group" role="tablist" aria-label="Turno">
+            <button id="tab-t1" class="btn-toggle active" role="tab" aria-selected="true" onclick="selecionarEleicao(eleicao.ano, 1)">1º Turno</button>
+            <button id="tab-t2" class="btn-toggle" role="tab" aria-selected="false" onclick="selecionarEleicao(eleicao.ano, 2)">2º Turno</button>
+        </div>
+        <span id="eleicao-info" class="eleicao-info"></span>
+    </div>
+
     <div class="header-dashboard">
         <div class="card apuracao">
             <div class="card-title">Status da Apuração (Brasil)</div>
-            <div class="card-value" id="br-apurado">0,00% <span style="font-size: 13px; font-weight: 500; color: #666;">das urnas</span></div>
-            <div class="card-sub" id="br-votos-totais" style="color: #0056b3; font-weight: 600;">0 votos apurados (pessoas)</div>
+            <div class="card-value" id="br-apurado">0,00% <span class="card-unit">das urnas</span></div>
+            <div class="card-sub destaque" id="br-votos-totais">0 votos apurados (pessoas)</div>
             <div class="progress-bar-bg"><div id="br-bar-apurado" class="progress-bar-fill fill-apuracao" style="width: 0%;"></div></div>
         </div>
-
         <div class="card lider">
-            <div class="card-title">1º Lugar Geral</div>
+            <div class="card-title" id="br-lider-titulo">1º Lugar Geral</div>
             <div class="card-value" id="br-lider-nome">Aguardando...</div>
             <div class="card-sub" id="br-lider-votos">0% (0 votos)</div>
             <div class="progress-bar-bg"><div id="br-bar-lider" class="progress-bar-fill" style="width: 0%;"></div></div>
         </div>
-
         <div class="card segundo">
-            <div class="card-title">2º Lugar Geral</div>
+            <div class="card-title" id="br-segundo-titulo">2º Lugar Geral</div>
             <div class="card-value" id="br-segundo-nome">Aguardando...</div>
             <div class="card-sub" id="br-segundo-votos">0% (0 votos)</div>
             <div class="progress-bar-bg"><div id="br-bar-segundo" class="progress-bar-fill" style="width: 0%;"></div></div>
         </div>
     </div>
 
-    <!-- CARDS DE 3º, 4º E 5º LUGAR -->
     <div class="header-outros-candidatos">
         <div class="card-outro">
-            <div class="card-title-sm">3º Lugar Geral</div>
+            <div class="card-title-sm" id="br-terceiro-titulo">3º Lugar Geral</div>
             <div class="card-value-sm" id="br-terceiro-nome">Aguardando...</div>
             <div class="card-sub-sm" id="br-terceiro-votos">0% (0 votos)</div>
         </div>
         <div class="card-outro">
-            <div class="card-title-sm">4º Lugar Geral</div>
+            <div class="card-title-sm" id="br-quarto-titulo">4º Lugar Geral</div>
             <div class="card-value-sm" id="br-quarto-nome">Aguardando...</div>
             <div class="card-sub-sm" id="br-quarto-votos">0% (0 votos)</div>
         </div>
         <div class="card-outro">
-            <div class="card-title-sm">5º Lugar Geral</div>
+            <div class="card-title-sm" id="br-quinto-titulo">5º Lugar Geral</div>
             <div class="card-value-sm" id="br-quinto-nome">Aguardando...</div>
             <div class="card-sub-sm" id="br-quinto-votos">0% (0 votos)</div>
         </div>
     </div>
 
-    <!-- BARRA DE PESQUISA INTELIGENTE POR CIDADE -->
     <div class="search-city-bar">
         <span class="search-title">🔍 Pesquisar Votação Municipal:</span>
         <div class="search-inputs-wrapper">
+            <label for="search-uf" class="sr-only">Estado</label>
             <select id="search-uf" class="search-select" onchange="carregarCidadesEstado(this.value)">
                 <option value="">UF...</option>
-                <option value="AC">AC</option><option value="AL">AL</option><option value="AM">AM</option><option value="AP">AP</option>
-                <option value="BA">BA</option><option value="CE">CE</option><option value="DF">DF</option><option value="ES">ES</option>
-                <option value="GO">GO</option><option value="MA">MA</option><option value="MG">MG</option><option value="MS">MS</option>
-                <option value="MT">MT</option><option value="PA">PA</option><option value="PB">PB</option><option value="PE">PE</option>
-                <option value="PI">PI</option><option value="PR">PR</option><option value="RJ">RJ</option><option value="RN">RN</option>
-                <option value="RO">RO</option><option value="RR">RR</option><option value="RS">RS</option><option value="SC">SC</option>
-                <option value="SE">SE</option><option value="SP">SP</option><option value="TO">TO</option>
             </select>
-
             <div class="autocomplete-container">
+                <label for="input-cidade" class="sr-only">Cidade</label>
                 <input type="text" id="input-cidade" class="search-input" placeholder="Selecione a UF primeiro..." autocomplete="off" disabled oninput="filtrarCidades(this.value)" />
                 <div id="autocomplete-list" class="autocomplete-items"></div>
             </div>
-
             <button class="search-btn" onclick="executarPesquisaCidade()">🔍 Pesquisar</button>
         </div>
     </div>
 
     <div class="controls-bar">
-        <div class="status-text" id="status-text">
-            Aguardando conexão com o servidor...
-        </div>
-        
+        <div class="status-text" id="status-text">Aguardando conexão com o servidor...</div>
         <div class="toggle-container">
             <button id="btn-toggle-sidebar" class="btn-toggle" onclick="toggleSidebar()">📊 Regiões</button>
-
-            <select id="select-regiao" class="select-regiao-btn" onchange="alterarRegiaoFiltro(this.value)">
+            <select id="select-regiao" class="select-regiao-btn" aria-label="Filtrar por região" onchange="alterarRegiaoFiltro(this.value)">
                 <option value="TODAS">🇧🇷 Todas as Regiões</option>
-                <option value="Sudeste">📍 Sudeste</option>
-                <option value="Sul">📍 Sul</option>
-                <option value="Nordeste">📍 Nordeste</option>
-                <option value="Centro-Oeste">📍 Centro-Oeste</option>
-                <option value="Norte">📍 Norte</option>
             </select>
-
             <div class="toggle-group">
-                <button id="btn-cor-lider" class="btn-toggle active" onclick="alterarModoCor('lideranca')">Liderança</button>
-                <button id="btn-cor-apuracao" class="btn-toggle" onclick="alterarModoCor('apuracao')">Heatmap</button>
+                <button id="btn-cor-lider" class="btn-toggle active" aria-pressed="true" onclick="alterarModoCor('lideranca')">Liderança</button>
+                <button id="btn-cor-apuracao" class="btn-toggle" aria-pressed="false" onclick="alterarModoCor('apuracao')">Heatmap</button>
             </div>
-
             <div class="toggle-group">
-                <button id="btn-tam-geo" class="btn-toggle active" onclick="alterarModoTamanho('geografico')">Geográfico</button>
-                <button id="btn-tam-pop" class="btn-toggle" onclick="alterarModoTamanho('populacao')">Proporcional</button>
+                <button id="btn-tam-geo" class="btn-toggle active" aria-pressed="true" onclick="alterarModoTamanho('geografico')">Geográfico</button>
+                <button id="btn-tam-pop" class="btn-toggle" aria-pressed="false" onclick="alterarModoTamanho('populacao')">Proporcional</button>
             </div>
         </div>
     </div>
 
     <div class="main-layout">
         <div id="map"></div>
-
         <div class="sidebar-regioes" id="sidebar-regioes">
-            <div class="sidebar-title">Resultado por Região</div>
-            <div id="regioes-list"><div style="font-size: 13px; color: #666;">Carregando regiões...</div></div>
+            <div class="sidebar-title" id="sidebar-titulo">Resultado por Região</div>
+            <div id="regioes-list"><div class="msg">Carregando regiões...</div></div>
         </div>
     </div>
 
-    <!-- PAINEL INFERIOR SOB DEMANDA: ESTADO OU CIDADE -->
     <div class="drawer-cargos" id="drawer-cargos">
         <div class="drawer-header">
             <div class="drawer-title" id="drawer-estado-titulo">🏛️ Outras Votações</div>
-            <button class="btn-close" onclick="fecharDrawer()">✕</button>
+            <button class="btn-close" aria-label="Fechar painel" onclick="fecharDrawer()">✕</button>
         </div>
         <div class="grid-cargos" id="grid-cargos-conteudo">
-            <div style="font-size: 13px; color: #666;">Selecione um estado no mapa ou pesquise uma cidade acima para ver a apuração completa.</div>
+            <div class="msg">Selecione um estado no mapa ou pesquise uma cidade acima para ver a apuração completa.</div>
         </div>
     </div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script>
-        const map = L.map('map', { center: [-14.2350, -51.9253], zoom: 4 });
-        let geoJsonLayer = null;
-        let legendControl = null;
-        let rawGeoJsonData = null;
-        let dadosVotacao = {};
-        
-        let listaCidadesMapa = []; 
-        let cidadeSelecionadaObjeto = null;
+        // ===================== CONFIGURAÇÃO =====================
+        const CENTRO = [-14.2350, -51.9253];               // [lat, lng] para o Leaflet
+        const CENTRO_LNGLAT = [CENTRO[1], CENTRO[0]];      // [lng, lat] para o GeoJSON
+        const ZOOM_INICIAL = 4;
+        const INTERVALO_SEG = 60;
 
-        let modoCor = 'lideranca';
-        let modoTamanho = 'geografico';
-        let regiaoFiltro = 'TODAS';
-        let sidebarVisivel = window.innerWidth > 900; 
-
-        let segundosParaAtualizar = 60;
-        setInterval(() => {
-            segundosParaAtualizar--;
-            if (segundosParaAtualizar < 0) segundosParaAtualizar = 0;
-            const relogio = document.getElementById('contador-tempo');
-            if (relogio) relogio.innerText = segundosParaAtualizar;
-        }, 1000);
-
-        const centroBrasil = [-51.9253, -14.2350];
+        // GeoJSON simplificado servido localmente; o original do GitHub fica só como reserva
+        const URLS_GEOJSON = [
+            '/static/brasil-uf.json',
+            'https://raw.githubusercontent.com/codeforamerica/click_that_hood/master/public/data/brazil-states.geojson'
+        ];
 
         const REGIOES = {
             'Sudeste': ['SP', 'MG', 'RJ', 'ES'],
@@ -392,627 +294,881 @@
             'AC': 0.6,  'AP': 0.55, 'RR': 0.38
         };
 
-        function aplicarEstadoSidebar() {
-            const sidebar = document.getElementById('sidebar-regioes');
-            const btn = document.getElementById('btn-toggle-sidebar');
-            if (sidebarVisivel) {
-                sidebar.classList.remove('hidden');
-                btn.classList.add('active');
-                btn.innerText = "📊 Regiões (Visível)";
-            } else {
-                sidebar.classList.add('hidden');
-                btn.classList.remove('active');
-                btn.innerText = "📊 Regiões (Oculto)";
+        // Cores por PARTIDO (a sigla vem do TSE). PT e PL mantêm exatamente a escala original do mapa.
+        // Para os demais, a escala de intensidade é gerada a partir da cor base.
+        const CORES_PARTIDOS = {
+            PT:   { barra: '#d9381e', legenda: '#800000', escala: ['#800000', '#b30000', '#e63946', '#ff8888'] },
+            PL:   { barra: '#0056b3', legenda: '#0056b3', escala: ['#002855', '#004085', '#0056b3', '#66b2ff'] },
+            PSD: '#f59e0b', MDB: '#2e7d32', PP: '#0891b2', UNIAO: '#7c3aed', REPUBLICANOS: '#84cc16',
+            PSDB: '#a16207', PSB: '#c2410c', PDT: '#db2777', PSOL: '#facc15', PODE: '#6366f1',
+            NOVO: '#fb923c', PCDOB: '#7f1d1d', PSL: '#1d4ed8', DEM: '#0369a1', CIDADANIA: '#ec4899',
+            SOLIDARIEDADE: '#f43f5e', AVANTE: '#14b8a6', PV: '#22c55e', REDE: '#0e7490', PTB: '#525252',
+            PRD: '#475569', PSC: '#9333ea', PROS: '#d97706', PATRIOTA: '#166534'
+        };
+        // Em eleições gerais, o candidato mantém a cor entre anos mesmo trocando de partido (ex.: Bolsonaro PSL→PL)
+        const NOME_PARTIDO_COR = { LULA: 'PT', BOLSONARO: 'PL' };
+        const COR_SEM_DADOS = '#cccccc';
+
+        // [mínimo %, cor, rótulo da legenda]
+        const ESCALA_APURACAO = [
+            [80, '#15803d', '&ge; 80%'], [60, '#4ade80', '60–80%'], [50, '#bbf7d0', '50–60%'],
+            [40, '#fef08a', '40–50%'],   [20, '#ffedd5', '20–40%'], [0,  '#fee2e2', '&lt; 20%']
+        ];
+
+        const ESTILO_HOVER = { fillOpacity: 1, weight: 2.5 };
+
+        const CARGOS = [
+            ['presidente',   '🗳️ Presidente'],
+            ['governador',   '🏢 Governador'],
+            ['senador',      '🗳️ Senador'],
+            ['dep_federal',  '💼 Deputado Federal'],
+            ['dep_estadual', '📜 Deputado Estadual'],
+            ['prefeito',     '🏙️ Prefeito'],
+            ['vereador',     '🪑 Vereador (mais votados)'],
+            ['partidos',     '🏛️ Municípios liderados por partido']
+        ];
+
+        const POSICOES = ['lider', 'segundo', 'terceiro', 'quarto', 'quinto'];
+
+        // ===================== ESTADO =====================
+        const map = L.map('map', { center: CENTRO, zoom: ZOOM_INICIAL });
+        let geoJsonLayer = null;
+        let rawGeoJsonData = null;
+        const cacheGeo = {};
+        let dadosVotacao = {};
+        let ultimaAtualizacao = null;
+        let buscando = false;
+        let segundos = INTERVALO_SEG;
+
+        let catalogo = [];
+        let eleicao = { ano: 2026, turno: 1, tipo: 'geral', ao_vivo: true };
+
+        let ufAtiva = null;                 // { sigla, nome } quando o mapa está mostrando os municípios
+        let camadaMunicipios = null;
+        let dadosMapaUF = {};
+        const geoMunCache = {};
+
+        let listaCidadesMapa = [];
+        let sugestoesAtuais = [];
+        let cidadeSelecionadaObjeto = null;
+        let reqCidades = 0, reqDrawer = 0, reqMapa = 0, reqVotacao = 0;   // descartam respostas antigas
+
+        let modoCor = 'lideranca';
+        let modoTamanho = 'geografico';
+        let regiaoFiltro = 'TODAS';
+        let sidebarVisivel = window.innerWidth > 900;
+
+        // ===================== UTILITÁRIOS =====================
+        const $ = id => document.getElementById(id);
+        const ESC_MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+        const esc = s => String(s ?? '').replace(/[&<>"']/g, ch => ESC_MAP[ch]);
+        const strToFloatPct = s => parseFloat(String(s ?? '0').replace(',', '.')) || 0;
+        const strToInt = s => parseInt(String(s ?? '0').replace(/\./g, ''), 10) || 0;
+        const fmtPct = n => n.toFixed(2).replace('.', ',');
+        const normalizarTexto = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
+        const pertenceAoFiltro = sigla => regiaoFiltro === 'TODAS' || (REGIOES[regiaoFiltro] || []).includes(sigla);
+        const qs = () => `?ano=${eleicao.ano}&turno=${eleicao.turno}`;
+        const ehMunicipal = () => eleicao.tipo === 'municipal';
+        const unidade = () => ehMunicipal() ? 'municípios' : 'votos';
+        const dataBR = iso => iso.split('-').reverse().join('/');
+
+        async function getJSON(url) {
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`HTTP ${res.status} em ${url}`);
+            return res.json();
+        }
+
+        // ===================== CORES =====================
+        function hexParaRgb(h) { h = h.replace('#', ''); return [0, 2, 4].map(i => parseInt(h.substr(i, 2), 16)); }
+        function rgbParaHex(a) { return '#' + a.map(v => Math.round(v).toString(16).padStart(2, '0')).join(''); }
+        function misturar(hex, alvo, t) { const a = hexParaRgb(hex), b = hexParaRgb(alvo); return rgbParaHex(a.map((v, i) => v + (b[i] - v) * t)); }
+        function corPorHash(texto) {
+            // Partido sem cor definida: gera uma cor estável a partir da sigla
+            let h = 0;
+            for (const ch of texto) h = (h * 31 + ch.charCodeAt(0)) % 360;
+            const s = 0.55, l = 0.45, k = n => (n + h / 30) % 12, a = s * Math.min(l, 1 - l);
+            const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+            return rgbParaHex([f(0) * 255, f(8) * 255, f(4) * 255]);
+        }
+
+        function chaveCor(c) {
+            if (!c) return '';
+            if (!ehMunicipal()) {
+                const nome = (c.nome || '').toUpperCase();
+                for (const [trecho, partido] of Object.entries(NOME_PARTIDO_COR)) if (nome.includes(trecho)) return partido;
             }
-            setTimeout(() => { if (map) map.invalidateSize(); }, 200);
+            return normalizarTexto(c.partido || c.nome).replace(/[^A-Z0-9]/g, '');
+        }
+
+        function infoCor(chave) {
+            const def = CORES_PARTIDOS[chave];
+            if (def && typeof def === 'object') return def;
+            const base = def || corPorHash(chave || '?');
+            return {
+                barra: base, legenda: base,
+                escala: [misturar(base, '#000000', 0.45), misturar(base, '#000000', 0.22), base, misturar(base, '#ffffff', 0.5)]
+            };
+        }
+
+        const getCorBarraCandidato = c => infoCor(chaveCor(c)).barra;
+        const getCorApuracao = pct => ESCALA_APURACAO.find(([min]) => pct >= min)[1];
+        function getCorLider(c, pct) {
+            if (!c) return COR_SEM_DADOS;
+            const escala = infoCor(chaveCor(c)).escala;
+            return escala[pct >= 60 ? 0 : pct >= 50 ? 1 : pct >= 40 ? 2 : 3];
+        }
+        function corDoResultado(res) {
+            if (!res) return COR_SEM_DADOS;
+            if (modoCor === 'apuracao') return getCorApuracao(strToFloatPct(res.apurado));
+            const c = res.candidatos?.[0];
+            return c ? getCorLider(c, strToFloatPct(c.percentual)) : COR_SEM_DADOS;
+        }
+
+        // ===================== TEMPLATES HTML =====================
+        function htmlBarra(pct, tamanho = '', cor = null) {
+            const classeFill = cor ? 'progress-bar-fill' : 'progress-bar-fill fill-apuracao';
+            const estiloCor = cor ? ` background-color: ${cor};` : '';
+            return `<div class="progress-bar-bg ${tamanho}"><div class="${classeFill}" style="width: ${pct}%;${estiloCor}"></div></div>`;
+        }
+
+        function htmlLinhaCandidato(pos, c, pctTexto, votosTexto, pctNum, mostrarPartido = true) {
+            const partidoHtml = mostrarPartido && c.partido && c.partido !== c.nome ? `<small> (${esc(c.partido)})</small>` : '';
+            return `<div class="cand-row">
+                <div class="cand-head">
+                    <span><strong>${pos}º ${esc(c.nome)}</strong>${partidoHtml}</span>
+                    <span><b>${esc(pctTexto)}%</b> <small class="muted">(${esc(votosTexto)})</small></span>
+                </div>
+                ${htmlBarra(pctNum, 'bar-6', getCorBarraCandidato(c))}
+            </div>`;
+        }
+
+        function htmlTooltip(titulo, subtitulo, res, unidadeVotos, chamada) {
+            if (!res || !res.candidatos || !res.candidatos.length) {
+                return `<b>${titulo}</b>${subtitulo ? ` - ${subtitulo}` : ''}<br>${res ? 'Sem votos apurados ainda.' : 'Sem dados.'}<br>${chamada}`;
+            }
+            const lideres = res.candidatos.slice(0, 2).map((c, i) => {
+                const partido = c.partido && c.partido !== c.nome ? ` (${esc(c.partido)})` : '';
+                return `${i + 1}º ${esc(c.nome)}${partido}: <b>${esc(c.percentual)}%</b> (${esc(c.votos)} ${unidadeVotos})<br>`;
+            }).join('');
+            return `<b>${titulo}</b>${subtitulo ? ` - <small>${subtitulo}</small>` : ''}<br>
+                Urnas Apuradas: <b>${esc(res.apurado)}%</b>
+                ${htmlBarra(strToFloatPct(res.apurado))}
+                <hr>
+                ${lideres}
+                <small class="tip-cta">${chamada}</small>`;
+        }
+
+        // ===================== SELETOR DE ELEIÇÃO =====================
+        async function carregarCatalogo() {
+            try {
+                const data = await getJSON('/api/eleicoes');
+                catalogo = data.eleicoes || [];
+                const sel = $('select-ano');
+                sel.innerHTML = catalogo.map(e => {
+                    const tem = e.turnos.some(t => t.disponivel);
+                    const rotulo = `${e.ano} – ${e.tipo === 'municipal' ? 'Municipais' : 'Gerais'}${tem ? '' : ' (sem dados)'}`;
+                    return `<option value="${e.ano}"${tem ? '' : ' disabled'}>${rotulo}</option>`;
+                }).join('');
+
+                const params = new URLSearchParams(location.search);
+                const ano = Number(params.get('ano')) || data.padrao?.ano || 2026;
+                const turno = Number(params.get('turno')) || data.padrao?.turno || 1;
+                selecionarEleicao(ano, turno);
+            } catch (err) {
+                console.error('Falha ao carregar /api/eleicoes:', err);
+                // Servidor antigo (sem /api/eleicoes): continua funcionando só com 2026 1º turno
+                catalogo = [{ ano: 2026, tipo: 'geral', turnos: [{ turno: 1, data: '2026-10-04', disponivel: true, ao_vivo: true }] }];
+                $('select-ano').innerHTML = '<option value="2026">2026 – Gerais</option>';
+                selecionarEleicao(2026, 1);
+            }
+        }
+
+        function selecionarEleicao(ano, turno) {
+            const info = catalogo.find(e => e.ano === ano) || catalogo.find(e => e.turnos.some(t => t.disponivel));
+            if (!info) return;
+            const t = info.turnos.find(x => x.turno === turno && x.disponivel) || info.turnos.find(x => x.disponivel);
+            if (!t) return;
+
+            eleicao = { ano: info.ano, turno: t.turno, tipo: info.tipo, ao_vivo: !!t.ao_vivo };
+            history.replaceState(null, '', `?ano=${eleicao.ano}&turno=${eleicao.turno}`);
+
+            // Zera tudo o que pertence à eleição anterior (mas mantém o estado aberto, se houver)
+            const estadoAberto = ufAtiva;
+            reqVotacao++;
+            sairEstado(false);
+            fecharDrawer();
+            dadosVotacao = {};
+            ultimaAtualizacao = null;
+            resetarCards();
+            const ufBusca = $('search-uf').value;
+            if (ufBusca) carregarCidadesEstado(ufBusca);
+
+            $('select-ano').value = eleicao.ano;
+            atualizarAbas(info);
+            atualizarTitulos();
+            atualizarEstilo();
+            atualizarTooltips();
+            atualizarPainelRegioes();
+            atualizarLegenda();
+
+            $('status-text').textContent = 'Carregando resultados...';
+            buscarDadosServidor();
+            if (estadoAberto) entrarEstado(estadoAberto.sigla, estadoAberto.nome);
+        }
+
+        function atualizarAbas(info) {
+            [1, 2].forEach(n => {
+                const tab = $(`tab-t${n}`);
+                const t = info.turnos.find(x => x.turno === n);
+                const ativo = eleicao.turno === n;
+                tab.disabled = !t || !t.disponivel;
+                tab.classList.toggle('active', ativo);
+                tab.setAttribute('aria-selected', ativo);
+                tab.title = !t ? 'Não houve este turno'
+                    : t.disponivel ? `Eleição de ${dataBR(t.data)}`
+                    : (t.data > new Date().toISOString().slice(0, 10) ? `Previsto para ${dataBR(t.data)}` : 'Dados ainda não gerados');
+            });
+            const t = info.turnos.find(x => x.turno === eleicao.turno);
+            const tipo = ehMunicipal()
+                ? (eleicao.turno === 2 ? 'Prefeitos (cidades com 2º turno)' : 'Prefeitos e vereadores')
+                : (eleicao.turno === 2 ? 'Presidente e governadores' : 'Presidente, governadores, senadores e deputados');
+            $('eleicao-info').textContent = `${tipo} · ${dataBR(t.data)}${eleicao.ao_vivo ? ' · ao vivo' : ''}`;
+        }
+
+        function atualizarTitulos() {
+            const turno = `${eleicao.turno}º turno`;
+            const titulo = ehMunicipal()
+                ? `Eleições Municipais ${eleicao.ano} – Prefeituras (${turno})`
+                : eleicao.ao_vivo ? `Apuração Presidencial em Tempo Real – ${turno}`
+                : `Resultado Presidencial ${eleicao.ano} – ${turno}`;
+            $('titulo-pagina').textContent = titulo;
+            document.title = titulo;
+            POSICOES.forEach((pos, i) => { $(`br-${pos}-titulo`).textContent = ehMunicipal() ? `${i + 1}º Partido` : `${i + 1}º Lugar Geral`; });
+            $('sidebar-titulo').textContent = ehMunicipal() ? 'Municípios liderados por Região' : 'Resultado por Região';
+            // No 2º turno das eleições gerais só existem dois candidatos: esconde os cards de 3º a 5º
+            document.querySelector('.header-outros-candidatos').style.display = (!ehMunicipal() && eleicao.turno === 2) ? 'none' : '';
+        }
+
+        function resetarCards() {
+            $('br-apurado').innerHTML = '0,00% <span class="card-unit">das urnas</span>';
+            $('br-bar-apurado').style.width = '0%';
+            $('br-votos-totais').textContent = ehMunicipal() ? '0 municípios com resultado' : '0 votos apurados (pessoas)';
+            atualizarCardsCandidatos([]);
+        }
+
+        // ===================== SELECTS E SIDEBAR =====================
+        function popularSelects() {
+            const ufs = Object.values(REGIOES).flat().sort();
+            $('search-uf').insertAdjacentHTML('beforeend', ufs.map(uf => `<option value="${uf}">${uf}</option>`).join(''));
+            $('select-regiao').insertAdjacentHTML('beforeend', Object.keys(REGIOES).map(r => `<option value="${r}">📍 ${r}</option>`).join(''));
+        }
+
+        function marcarToggle(id, ativo) {
+            const btn = $(id);
+            btn.classList.toggle('active', ativo);
+            btn.setAttribute('aria-pressed', ativo);
+        }
+
+        function aplicarEstadoSidebar() {
+            $('sidebar-regioes').classList.toggle('hidden', !sidebarVisivel);
+            marcarToggle('btn-toggle-sidebar', sidebarVisivel);
+            $('btn-toggle-sidebar').textContent = `📊 Regiões (${sidebarVisivel ? 'Visível' : 'Oculto'})`;
+            setTimeout(() => map.invalidateSize(), 200); // a largura do mapa muda sem evento de resize
         }
 
         function toggleSidebar() { sidebarVisivel = !sidebarVisivel; aplicarEstadoSidebar(); }
 
-        function strToFloatPct(str) { return parseFloat((str || '0').replace(',', '.')) || 0; }
+        // ===================== BUSCA DE CIDADES =====================
+        function esconderSugestoes() { $('autocomplete-list').style.display = 'none'; }
 
-        function normalizarTexto(str) {
-            return (str || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
-        }
-
-        function getCorBarraCandidato(nomeCandidate) {
-            const upper = (nomeCandidate || '').toUpperCase();
-            if (upper.includes('LULA')) return '#d9381e';       
-            if (upper.includes('BOLSONARO')) return '#0056b3';  
-            return '#6c757d';                                   
-        }
-
-        function getCorApuracao(pct) {
-            if (pct >= 80) return '#15803d';
-            if (pct >= 60) return '#4ade80';
-            if (pct >= 50) return '#bbf7d0';
-            if (pct >= 40) return '#fef08a';
-            if (pct >= 20) return '#ffedd5';
-            return '#fee2e2';
-        }
-
-        function getCorLider(nomeLider, pct) {
-            const upper = (nomeLider || '').toUpperCase();
-            if (upper.includes('LULA')) {
-                if (pct >= 60) return '#800000';
-                if (pct >= 50) return '#b30000';
-                if (pct >= 40) return '#e63946';
-                return '#ff8888';
-            } else if (upper.includes('BOLSONARO')) {
-                if (pct >= 60) return '#002855';
-                if (pct >= 50) return '#004085';
-                if (pct >= 40) return '#0056b3';
-                return '#66b2ff';
-            }
-            return '#cccccc';
-        }
-
-        // CARREGA A LISTA DE CIDADES DA UF SELECIONADA
         async function carregarCidadesEstado(uf) {
-            const inputCidade = document.getElementById('input-cidade');
-            const listDiv = document.getElementById('autocomplete-list');
-            
-            inputCidade.value = '';
-            listDiv.innerHTML = '';
-            listDiv.style.display = 'none';
+            const id = ++reqCidades;
+            const input = $('input-cidade');
+            input.value = '';
+            $('autocomplete-list').innerHTML = '';
+            esconderSugestoes();
             listaCidadesMapa = [];
+            sugestoesAtuais = [];
             cidadeSelecionadaObjeto = null;
+            input.disabled = true;
 
-            if (!uf) {
-                inputCidade.disabled = true;
-                inputCidade.placeholder = "Selecione a UF primeiro...";
-                return;
-            }
-
-            inputCidade.disabled = true;
-            inputCidade.placeholder = `Carregando cidades de ${uf}...`;
+            if (!uf) { input.placeholder = 'Selecione a UF primeiro...'; return; }
+            input.placeholder = `Carregando cidades de ${uf}...`;
 
             try {
-                const res = await fetch(`/api/municipios/${uf}`);
-                const data = await res.json();
-
-                if (!data || data.length === 0) {
-                    inputCidade.placeholder = "Nenhuma cidade encontrada.";
-                    return;
-                }
-
-                listaCidadesMapa = data;
-                inputCidade.disabled = false;
-                inputCidade.placeholder = `Digite para buscar entre ${data.length} cidades de ${uf}...`;
-
-            } catch (err) {
-                inputCidade.placeholder = "Erro ao carregar cidades.";
+                const data = await getJSON(`/api/municipios/${uf}${qs()}`);
+                if (id !== reqCidades) return;
+                if (!data || !data.length) { input.placeholder = 'Nenhuma cidade encontrada para esta eleição.'; return; }
+                listaCidadesMapa = data.map(m => ({ ...m, nomeNorm: normalizarTexto(m.nome) }));
+                input.disabled = false;
+                input.placeholder = `Digite para buscar entre ${data.length} cidades de ${uf}...`;
+            } catch {
+                if (id === reqCidades) input.placeholder = 'Erro ao carregar cidades.';
             }
         }
 
-        // FILTRA AS CIDADES CONFORME O USUÁRIO DIGITA (AUTOCOMPLETE INTELIGENTE)
         function filtrarCidades(termo) {
-            const listDiv = document.getElementById('autocomplete-list');
-            listDiv.innerHTML = '';
+            const lista = $('autocomplete-list');
             cidadeSelecionadaObjeto = null;
-
-            const valNorm = normalizarTexto(termo);
-            if (!valNorm || !listaCidadesMapa.length) {
-                listDiv.style.display = 'none';
-                return;
-            }
-
-            // Filtra ignorando acentos
-            const correspondencias = listaCidadesMapa.filter(m =>
-                normalizarTexto(m.nome).includes(valNorm)
-            ).slice(0, 15); // Exibe no máximo 15 sugestões por vez para agilidade
-
-            if (correspondencias.length === 0) {
-                listDiv.style.display = 'none';
-                return;
-            }
-
-            correspondencias.forEach(m => {
-                const itemDiv = document.createElement('div');
-                itemDiv.innerText = m.nome;
-                itemDiv.addEventListener('click', function() {
-                    document.getElementById('input-cidade').value = m.nome;
-                    cidadeSelecionadaObjeto = m;
-                    listDiv.style.display = 'none';
-                    executarPesquisaCidade(); // Consulta a cidade imediatamente ao clicar
-                });
-                listDiv.appendChild(itemDiv);
-            });
-
-            listDiv.style.display = 'block';
+            const t = normalizarTexto(termo);
+            sugestoesAtuais = t ? listaCidadesMapa.filter(m => m.nomeNorm.includes(t)).slice(0, 15) : [];
+            lista.innerHTML = sugestoesAtuais.map((m, i) => `<div data-i="${i}">${esc(m.nome)}</div>`).join('');
+            lista.style.display = sugestoesAtuais.length ? 'block' : 'none';
         }
 
-        // ESCONDE O AUTOCOMPLETE AO CLICAR FORA DO CAMPO
-        document.addEventListener('click', function (e) {
-            if (!e.target.closest('.autocomplete-container')) {
-                const listDiv = document.getElementById('autocomplete-list');
-                if (listDiv) listDiv.style.display = 'none';
-            }
+        $('autocomplete-list').addEventListener('click', e => {
+            const item = e.target.closest('[data-i]');
+            if (!item) return;
+            const cidade = sugestoesAtuais[item.dataset.i];
+            $('input-cidade').value = cidade.nome;
+            cidadeSelecionadaObjeto = cidade;
+            esconderSugestoes();
+            executarPesquisaCidade();
         });
 
-        // EXECUTA A PESQUISA DA CIDADE
-        async function executarPesquisaCidade() {
-            const uf = document.getElementById('search-uf').value;
-            const inputCidade = document.getElementById('input-cidade');
-            const termoDigitado = normalizarTexto(inputCidade.value);
+        $('input-cidade').addEventListener('keydown', e => {
+            if (e.key === 'Enter') { e.preventDefault(); esconderSugestoes(); executarPesquisaCidade(); }
+            else if (e.key === 'Escape') esconderSugestoes();
+        });
 
-            if (!uf || !termoDigitado) {
+        document.addEventListener('click', e => {
+            if (!e.target.closest('.autocomplete-container')) esconderSugestoes();
+        });
+
+        function executarPesquisaCidade() {
+            const uf = $('search-uf').value;
+            const input = $('input-cidade');
+            const termo = normalizarTexto(input.value);
+
+            if (!uf || !termo) {
                 alert('Por favor, selecione a UF e digite o nome de uma cidade.');
                 return;
             }
 
-            // Tenta encontrar pela cidade previamente clicada ou busca exata na lista
-            let cidadeAlvo = cidadeSelecionadaObjeto;
-            if (!cidadeAlvo) {
-                cidadeAlvo = listaCidadesMapa.find(m => normalizarTexto(m.nome) === termoDigitado) ||
-                             listaCidadesMapa.find(m => normalizarTexto(m.nome).includes(termoDigitado));
-            }
+            const cidade = cidadeSelecionadaObjeto
+                || listaCidadesMapa.find(m => m.nomeNorm === termo)
+                || (sugestoesAtuais.length === 1 ? sugestoesAtuais[0] : null);
 
-            if (!cidadeAlvo) {
-                alert(`A cidade "${inputCidade.value}" não foi encontrada no estado de ${uf}. Escolha uma opção da lista sugerida.`);
+            if (!cidade) {
+                alert(`A cidade "${input.value}" não foi encontrada no estado de ${uf}. Escolha uma opção da lista sugerida.`);
                 return;
             }
-
-            const drawer = document.getElementById('drawer-cargos');
-            const titulo = document.getElementById('drawer-estado-titulo');
-            const conteudo = document.getElementById('grid-cargos-conteudo');
-
-            drawer.classList.add('active');
-            titulo.innerText = `🏙️ Apuração Completa em ${cidadeAlvo.nome} (${uf})`;
-            conteudo.innerHTML = `<div style="font-size: 13px; color: #0056b3;">🔄 Consultando votação oficial em ${cidadeAlvo.nome}...</div>`;
-
-            drawer.scrollIntoView({ behavior: 'smooth' });
-
-            try {
-                const res = await fetch(`/api/detalhes/${uf}/${cidadeAlvo.codigo}`);
-                const data = await res.json();
-
-                renderizarGradeCargos(data.cargos, uf, conteudo);
-
-            } catch (err) {
-                conteudo.innerHTML = `<div style="font-size: 13px; color: #d9381e;">Erro ao carregar dados da cidade.</div>`;
-            }
+            abrirDrawerCidade(uf, cidade.codigo, cidade.nome);
         }
 
-        // CARREGA DETALHES AO CLICAR EM UM ESTADO NO MAPA
-        async function carregarDetalhesEstado(siglaUF, nomeEstado) {
-            const drawer = document.getElementById('drawer-cargos');
-            const titulo = document.getElementById('drawer-estado-titulo');
-            const conteudo = document.getElementById('grid-cargos-conteudo');
-
-            drawer.classList.add('active');
-            titulo.innerText = `🏛 Apuração de Outros Cargos - ${nomeEstado} (${siglaUF})`;
-            conteudo.innerHTML = `<div style="font-size: 13px; color: #0056b3;">🔄 Consultando apuração de Governadores, Senadores e Deputados no TSE...</div>`;
-
-            drawer.scrollIntoView({ behavior: 'smooth' });
-
-            try {
-                const res = await fetch(`/api/detalhes/${siglaUF}`);
-                const data = await res.json();
-
-                renderizarGradeCargos(data.cargos, siglaUF, conteudo);
-
-            } catch (err) {
-                conteudo.innerHTML = `<div style="font-size: 13px; color: #d9381e;">Erro ao carregar apuração do estado.</div>`;
-            }
-        }
-
-        // RENDERIZA A GRADE DE CARGOS NO PAINEL INFERIOR
-        function renderizarGradeCargos(cargosData, uf, container) {
-            if (!cargosData || Object.keys(cargosData).length === 0) {
-                container.innerHTML = `<div style="font-size: 13px; color: #666;">Dados ainda não disponibilizados para este local.</div>`;
-                return;
-            }
-
-            let html = '';
-            
-            const titulosCargos = {
-                'presidente': '🗳️ Presidente',
-                'governador': '🏢 Governador',
-                'senador': '🗳️ Senador',
-                'dep_federal': '💼 Deputado Federal',
-                'dep_estadual': uf.toUpperCase() === 'DF' ? '📜 Deputado Distrital' : '📜 Deputado Estadual'
-            };
-
-            const ordemDesejada = ['presidente', 'governador', 'senador', 'dep_federal', 'dep_estadual'];
-
-            ordemDesejada.forEach(cargoKey => {
-                const cargoData = cargosData[cargoKey];
-                if (!cargoData) return; 
-
-                html += `
-                    <div class="cargo-box">
-                        <div class="cargo-box-title">${titulosCargos[cargoKey] || cargoKey}</div>
-                        
-                        <div style="font-size: 11px; font-weight: 600; color: #28a745; margin-bottom: 12px;">
-                            Urnas Apuradas: ${cargoData.apurado}%
-                            <div class="progress-bar-bg" style="height: 5px; margin-top: 4px;">
-                                <div class="progress-bar-fill fill-apuracao" style="width: ${strToFloatPct(cargoData.apurado)}%;"></div>
-                            </div>
-                        </div>
-                `;
-
-                if (!cargoData.candidatos || cargoData.candidatos.length === 0) {
-                    html += `<div style="font-size: 11px; color: #888;">Sem dados até o momento.</div>`;
-                } else {
-                    cargoData.candidatos.forEach((c, i) => {
-                        const partidoStr = c.partido ? ` (${c.partido})` : '';
-                        const corBarra = getCorBarraCandidato(c.nome);
-                        
-                        html += `
-                            <div style="font-size: 12px; margin-bottom: 10px;">
-                                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                                    <span><strong>${i+1}º ${c.nome}</strong><small>${partidoStr}</small></span>
-                                    <span><b>${c.percentual}%</b> <small style="color: #666;">(${c.votos})</small></span>
-                                </div>
-                                <div class="progress-bar-bg" style="height: 6px;">
-                                    <div class="progress-bar-fill" style="width: ${strToFloatPct(c.percentual)}%; background-color: ${corBarra};"></div>
-                                </div>
-                            </div>
-                        `;
-                    });
-                }
-
-                html += `</div>`;
+        // ===================== PAINEL INFERIOR =====================
+        function abrirDrawerCidade(uf, codigoTse, nome) {
+            abrirDrawer({
+                titulo: `🏙️ Apuração Completa em ${nome} (${uf})`,
+                carregando: `🔄 Consultando votação em ${nome}...`,
+                erro: 'Erro ao carregar dados da cidade.',
+                url: `/api/detalhes/${uf}/${codigoTse}${qs()}`,
+                uf, rolar: true
             });
+        }
 
-            container.innerHTML = html;
+        function carregarDetalhesEstado(sigla, nome) {
+            const municipal = ehMunicipal();
+            abrirDrawer({
+                titulo: municipal ? `🏛️ Prefeituras - ${nome} (${sigla})`
+                    : eleicao.turno === 2 ? `🏛️ Governador - ${nome} (${sigla})`
+                    : `🏛️ Apuração de Outros Cargos - ${nome} (${sigla})`,
+                carregando: municipal ? '🔄 Consultando prefeituras do estado...'
+                    : '🔄 Consultando apuração de Governadores, Senadores e Deputados no TSE...',
+                erro: 'Erro ao carregar apuração do estado.',
+                url: `/api/detalhes/${sigla}${qs()}`,
+                uf: sigla, rolar: false   // o foco é o mapa do estado; o painel abre abaixo sem rolar
+            });
+        }
+
+        async function abrirDrawer({ titulo, carregando, erro, url, uf, rolar }) {
+            const id = ++reqDrawer;
+            const drawer = $('drawer-cargos');
+            const conteudo = $('grid-cargos-conteudo');
+
+            drawer.classList.add('active');
+            $('drawer-estado-titulo').textContent = titulo;
+            conteudo.innerHTML = `<div class="msg msg-load">${esc(carregando)}</div>`;
+            if (rolar) drawer.scrollIntoView({ behavior: 'smooth' });
+
+            try {
+                const data = await getJSON(url);
+                if (id !== reqDrawer) return;
+                renderizarGradeCargos(data.cargos, uf, conteudo);
+            } catch {
+                if (id === reqDrawer) conteudo.innerHTML = `<div class="msg msg-erro">${erro}</div>`;
+            }
+        }
+
+        function renderizarGradeCargos(cargos, uf, container) {
+            if (!cargos || !Object.keys(cargos).length) {
+                container.innerHTML = '<div class="msg">Dados ainda não disponibilizados para este local.</div>';
+                return;
+            }
+
+            container.innerHTML = CARGOS.filter(([chave]) => cargos[chave]).map(([chave, rotulo]) => {
+                const cargo = cargos[chave];
+                const titulo = (chave === 'dep_estadual' && uf.toUpperCase() === 'DF') ? '📜 Deputado Distrital' : rotulo;
+                const cands = cargo.candidatos || [];
+                const linhas = cands.length
+                    ? cands.map((c, i) => htmlLinhaCandidato(i + 1, c, c.percentual, c.votos, strToFloatPct(c.percentual))).join('')
+                    : '<div class="msg-sm">Sem dados até o momento.</div>';
+
+                return `<div class="cargo-box">
+                    <div class="cargo-box-title">${titulo}</div>
+                    <div class="apurado-mini">
+                        Urnas Apuradas: ${esc(cargo.apurado)}%
+                        ${htmlBarra(strToFloatPct(cargo.apurado), 'bar-5')}
+                    </div>
+                    ${linhas}
+                </div>`;
+            }).join('');
         }
 
         function fecharDrawer() {
-            document.getElementById('drawer-cargos').classList.remove('active');
+            reqDrawer++;
+            $('drawer-cargos').classList.remove('active');
+        }
+
+        // ===================== FILTROS E MODOS =====================
+        function enquadrarRegiao() {
+            if (!geoJsonLayer) return;
+            if (regiaoFiltro === 'TODAS') { map.setView(CENTRO, ZOOM_INICIAL); return; }
+            const bounds = L.latLngBounds();
+            geoJsonLayer.eachLayer(layer => {
+                if (pertenceAoFiltro(layer.feature.properties.sigla)) bounds.extend(layer.getBounds());
+            });
+            if (bounds.isValid()) map.fitBounds(bounds, { padding: [30, 30], maxZoom: 6 });
         }
 
         function alterarRegiaoFiltro(novaRegiao) {
+            sairEstado(false);
             regiaoFiltro = novaRegiao;
-            document.getElementById('select-regiao').value = regiaoFiltro;
-
-            atualizarEstiloEConteudo();
+            $('select-regiao').value = regiaoFiltro;
+            atualizarEstilo();
             atualizarPainelRegioes();
-
-            if (!geoJsonLayer) return;
-
-            if (regiaoFiltro === 'TODAS') {
-                map.setView([-14.2350, -51.9253], 4);
-            } else {
-                const ufs = REGIOES[regiaoFiltro] || [];
-                let bounds = L.latLngBounds();
-
-                geoJsonLayer.eachLayer(layer => {
-                    if (ufs.includes(layer.feature.properties.sigla)) {
-                        bounds.extend(layer.getBounds());
-                    }
-                });
-
-                if (bounds.isValid()) {
-                    map.fitBounds(bounds, { padding: [30, 30], maxZoom: 6 });
-                }
-            }
-            setTimeout(() => { map.invalidateSize(); }, 200);
+            enquadrarRegiao();
         }
 
         function alterarModoCor(novoModo) {
             modoCor = novoModo;
-            document.getElementById('btn-cor-lider').classList.toggle('active', modoCor === 'lideranca');
-            document.getElementById('btn-cor-apuracao').classList.toggle('active', modoCor === 'apuracao');
-            atualizarEstiloEConteudo();
+            marcarToggle('btn-cor-lider', modoCor === 'lideranca');
+            marcarToggle('btn-cor-apuracao', modoCor === 'apuracao');
+            atualizarEstilo();
+            atualizarEstiloMunicipios();
             atualizarLegenda();
         }
 
         function alterarModoTamanho(novoModo) {
             modoTamanho = novoModo;
-            document.getElementById('btn-tam-geo').classList.toggle('active', modoTamanho === 'geografico');
-            document.getElementById('btn-tam-pop').classList.toggle('active', modoTamanho === 'populacao');
+            marcarToggle('btn-tam-geo', modoTamanho === 'geografico');
+            marcarToggle('btn-tam-pop', modoTamanho === 'populacao');
             renderizarCamadaGeoJSON();
         }
 
+        // ===================== GEOMETRIA (modo proporcional) =====================
         function calcularAreaPlanar(feature) {
-            let totalArea = 0;
-            function areaPolygon(coordinates) {
-                let area = 0;
-                for (let i = 0; i < coordinates.length; i++) {
-                    let ring = coordinates[i];
-                    let ringArea = 0;
-                    for (let j = 0; j < ring.length - 1; j++) {
-                        ringArea += (ring[j][0] * ring[j+1][1]) - (ring[j+1][0] * ring[j][1]);
-                    }
-                    ringArea = Math.abs(ringArea) / 2;
-                    if (i === 0) area += ringArea; else area -= ringArea;
-                }
-                return area;
-            }
-            if (feature.geometry.type === 'Polygon') totalArea = areaPolygon(feature.geometry.coordinates);
-            else if (feature.geometry.type === 'MultiPolygon') feature.geometry.coordinates.forEach(p => totalArea += areaPolygon(p));
-            return totalArea;
+            const areaPoligono = aneis => aneis.reduce((total, anel, i) => {
+                let a = 0;
+                for (let j = 0; j < anel.length - 1; j++) a += anel[j][0] * anel[j + 1][1] - anel[j + 1][0] * anel[j][1];
+                a = Math.abs(a) / 2;
+                return i === 0 ? total + a : total - a;
+            }, 0);
+            const { type, coordinates } = feature.geometry;
+            if (type === 'Polygon') return areaPoligono(coordinates);
+            if (type === 'MultiPolygon') return coordinates.reduce((s, p) => s + areaPoligono(p), 0);
+            return 0;
         }
 
         function obterCentroide(feature) {
-            let pts = [];
-            function extrair(coords) { if (typeof coords[0] === 'number') pts.push(coords); else coords.forEach(extrair); }
-            extrair(feature.geometry.coordinates);
-            let sumX = 0, sumY = 0;
-            pts.forEach(p => { sumX += p[0]; sumY += p[1]; });
-            return [sumX / pts.length, sumY / pts.length];
+            let sx = 0, sy = 0, n = 0;
+            (function percorrer(c) {
+                if (typeof c[0] === 'number') { sx += c[0]; sy += c[1]; n++; }
+                else c.forEach(percorrer);
+            })(feature.geometry.coordinates);
+            return [sx / n, sy / n];
         }
 
-        function escalarEAfastarGeometria(geometry, factor, centroid, dispersion) {
-            const vecX = centroid[0] - centroBrasil[0];
-            const vecY = centroid[1] - centroBrasil[1];
-            const novoCentroid = [ centroBrasil[0] + vecX * dispersion, centroBrasil[1] + vecY * dispersion ];
+        function escalarEAfastarGeometria(geometry, fator, centroide, dispersao) {
+            const novoCentro = [
+                CENTRO_LNGLAT[0] + (centroide[0] - CENTRO_LNGLAT[0]) * dispersao,
+                CENTRO_LNGLAT[1] + (centroide[1] - CENTRO_LNGLAT[1]) * dispersao
+            ];
+            const escalar = c => typeof c[0] === 'number'
+                ? [novoCentro[0] + (c[0] - centroide[0]) * fator, novoCentro[1] + (c[1] - centroide[1]) * fator]
+                : c.map(escalar);
+            return { type: geometry.type, coordinates: escalar(geometry.coordinates) };
+        }
 
-            function escalarCoords(coords) {
-                if (typeof coords[0] === 'number') {
-                    return [ novoCentroid[0] + (coords[0] - centroid[0]) * factor, novoCentroid[1] + (coords[1] - centroid[1]) * factor ];
-                }
-                return coords.map(escalarCoords);
+        function gerarGeoProporcional(geo) {
+            const base = geo.features.map(f => ({
+                f,
+                area: f.properties.area ?? calcularAreaPlanar(f),
+                eleit: eleitoradoUF[f.properties.sigla] || 3.0
+            }));
+            const totalArea = base.reduce((s, b) => s + b.area, 0);
+            const totalEleit = base.reduce((s, b) => s + b.eleit, 0);
+            return {
+                type: 'FeatureCollection',
+                features: base.map(({ f, area, eleit }) => {
+                    const fator = Math.sqrt((eleit / totalEleit) / (area / totalArea));
+                    const centroide = f.properties.cx != null ? [f.properties.cx, f.properties.cy] : obterCentroide(f);
+                    return { ...f, geometry: escalarEAfastarGeometria(f.geometry, fator, centroide, 2.1) };
+                })
+            };
+        }
+
+        function geoDoModo(modo) {
+            if (!cacheGeo[modo]) cacheGeo[modo] = modo === 'populacao' ? gerarGeoProporcional(rawGeoJsonData) : rawGeoJsonData;
+            return cacheGeo[modo];
+        }
+
+        // ===================== MAPA DOS ESTADOS =====================
+        function estiloEstado(sigla) {
+            const cor = corDoResultado(dadosVotacao[sigla]);
+            if (ufAtiva) {
+                return sigla === ufAtiva.sigla
+                    ? { fillColor: cor, fillOpacity: 0, color: '#1c1e21', weight: 2 }
+                    : { fillColor: cor, fillOpacity: 0.1, color: '#d0d0d0', weight: 0.5 };
             }
-            return { type: geometry.type, coordinates: escalarCoords(geometry.coordinates) };
+            const ativo = pertenceAoFiltro(sigla);
+            return { fillColor: cor, fillOpacity: ativo ? 0.88 : 0.1, color: ativo ? '#ffffff' : '#d0d0d0', weight: ativo ? 1.5 : 0.5 };
         }
 
         function renderizarCamadaGeoJSON() {
             if (!rawGeoJsonData) return;
             if (geoJsonLayer) map.removeLayer(geoJsonLayer);
 
-            let geoDataParaUsar = JSON.parse(JSON.stringify(rawGeoJsonData));
-
-            if (modoTamanho === 'populacao') {
-                let totalGeoArea = 0, totalEleitorado = 0;
-
-                geoDataParaUsar.features.forEach(f => {
-                    const sigla = f.properties.sigla;
-                    f.properties.areaGeo = calcularAreaPlanar(f);
-                    f.properties.eleit = eleitoradoUF[sigla] || 3.0;
-                    totalGeoArea += f.properties.areaGeo;
-                    totalEleitorado += f.properties.eleit;
-                });
-
-                geoDataParaUsar.features.forEach(feature => {
-                    const shareEleitorado = feature.properties.eleit / totalEleitorado;
-                    const shareAreaGeo = feature.properties.areaGeo / totalGeoArea;
-                    const factor = Math.sqrt(shareEleitorado / shareAreaGeo);
-                    const centroid = obterCentroide(feature);
-                    feature.geometry = escalarEAfastarGeometria(feature.geometry, factor, centroid, 2.1);
-                });
-            }
-
-            geoJsonLayer = L.geoJSON(geoDataParaUsar, {
-                style: { color: "#ffffff", weight: 1.5, fillOpacity: 0.88, fillColor: "#cccccc" },
-                onEachFeature: function (feature, layer) {
-                    const sigla = feature.properties.sigla;
-                    const nome = feature.properties.name;
-
-                    layer.bindTooltip(gerarConteudoTooltip(nome, sigla));
-                    
+            geoJsonLayer = L.geoJSON(geoDoModo(modoTamanho), {
+                style: f => estiloEstado(f.properties.sigla),
+                onEachFeature: (feature, layer) => {
+                    const { sigla, name } = feature.properties;
+                    layer.bindTooltip(gerarConteudoTooltip(name, sigla));
                     layer.on({
-                        click: () => carregarDetalhesEstado(sigla, nome),
-                        mouseover: (e) => {
-                            const ufsRegiao = (regiaoFiltro === 'TODAS') ? null : (REGIOES[regiaoFiltro] || []);
-                            const pertenceAoFiltro = !ufsRegiao || ufsRegiao.includes(sigla);
-                            if (pertenceAoFiltro) {
-                                layer.setStyle({ fillOpacity: 1, weight: 2.5 });
-                            }
-                        },
-                        mouseout: (e) => {
-                            const ufsRegiao = (regiaoFiltro === 'TODAS') ? null : (REGIOES[regiaoFiltro] || []);
-                            const pertenceAoFiltro = !ufsRegiao || ufsRegiao.includes(sigla);
-                            if (pertenceAoFiltro) {
-                                layer.setStyle({ fillOpacity: 0.88, weight: 1.5 });
-                            }
-                        }
+                        click: () => entrarEstado(sigla, name),
+                        mouseover: () => { if (!ufAtiva && pertenceAoFiltro(sigla)) layer.setStyle(ESTILO_HOVER); },
+                        mouseout: () => layer.setStyle(estiloEstado(sigla))
                     });
                 }
             }).addTo(map);
-
-            atualizarEstiloEConteudo();
+            if (camadaMunicipios) camadaMunicipios.bringToFront();
         }
 
-        function atualizarPainelRegioes() {
-            const container = document.getElementById('regioes-list');
-            if (!container) return;
+        function atualizarEstilo() {
+            if (!geoJsonLayer) return;
+            geoJsonLayer.eachLayer(layer => layer.setStyle(estiloEstado(layer.feature.properties.sigla)));
+        }
 
+        function atualizarTooltips() {
+            if (!geoJsonLayer) return;
+            geoJsonLayer.eachLayer(layer => {
+                const { name, sigla } = layer.feature.properties;
+                layer.setTooltipContent(gerarConteudoTooltip(name, sigla));
+            });
+        }
+
+        function gerarConteudoTooltip(nomeEstado, sigla) {
+            const eleit = eleitoradoUF[sigla] ? `${eleitoradoUF[sigla]}M eleitores` : '';
+            return htmlTooltip(`${esc(nomeEstado)} (${sigla})`, eleit, dadosVotacao[sigla], unidade(),
+                '👉 Clique para ver os municípios e os demais cargos');
+        }
+
+        // ===================== MAPA DOS MUNICÍPIOS =====================
+        const controleEstado = L.control({ position: 'topright' });
+        controleEstado.onAdd = () => {
+            const div = L.DomUtil.create('div', 'legend controle-estado');
+            div.innerHTML = '<button class="btn-voltar" onclick="sairEstado()">← Voltar ao Brasil</button><div id="mapa-status" class="mapa-status"></div>';
+            L.DomEvent.disableClickPropagation(div);
+            return div;
+        };
+        const setMapaStatus = txt => { const el = $('mapa-status'); if (el) el.textContent = txt; };
+
+        async function geoMunicipios(sigla) {
+            if (!geoMunCache[sigla]) geoMunCache[sigla] = getJSON(`/static/municipios/${sigla}.json`);
+            return geoMunCache[sigla];
+        }
+
+        async function entrarEstado(sigla, nome) {
+            if (!geoJsonLayer) return;
+            if (modoTamanho === 'populacao') alterarModoTamanho('geografico'); // municípios só existem na geometria real
+            const trocouDeEstado = !ufAtiva || ufAtiva.sigla !== sigla;
+            ufAtiva = { sigla, nome };
+            $('btn-tam-pop').disabled = true;
+            if (!controleEstado._map) controleEstado.addTo(map);
+
+            geoJsonLayer.eachLayer(l => {
+                if (l.feature.properties.sigla === sigla) map.fitBounds(l.getBounds(), { padding: [20, 20] });
+            });
+            atualizarEstilo();
+            carregarDetalhesEstado(sigla, nome);
+            if (trocouDeEstado) await carregarMapaEstado(false);
+        }
+
+        async function carregarMapaEstado(silencioso) {
+            if (!ufAtiva) return;
+            const id = ++reqMapa;
+            const { sigla } = ufAtiva;
+            if (!silencioso) {
+                setMapaStatus(eleicao.ao_vivo
+                    ? `Carregando os municípios de ${sigla} no TSE… (pode levar alguns segundos)`
+                    : `Carregando os municípios de ${sigla}…`);
+            }
+            try {
+                const [geo, dados] = await Promise.all([geoMunicipios(sigla), getJSON(`/api/mapa/${sigla}${qs()}`)]);
+                if (id !== reqMapa || !ufAtiva || ufAtiva.sigla !== sigla) return;
+                dadosMapaUF = dados || {};
+
+                if (!camadaMunicipios || camadaMunicipios._uf !== sigla) {
+                    if (camadaMunicipios) map.removeLayer(camadaMunicipios);
+                    camadaMunicipios = L.geoJSON(geo, {
+                        style: { color: '#ffffff', weight: 0.6, fillOpacity: 0.9, fillColor: COR_SEM_DADOS },
+                        onEachFeature: (feature, layer) => {
+                            layer.bindTooltip('', { sticky: true });
+                            layer.on({
+                                click: () => clicarMunicipio(feature.properties.id, feature.properties.name),
+                                mouseover: () => { layer.setStyle({ weight: 2, color: '#1c1e21' }); layer.bringToFront(); },
+                                mouseout: () => layer.setStyle({ weight: 0.6, color: '#ffffff' })
+                            });
+                        }
+                    }).addTo(map);
+                    camadaMunicipios._uf = sigla;
+                }
+                atualizarEstiloMunicipios();
+                atualizarTooltipsMunicipios();
+                atualizarLegenda();
+                setMapaStatus(Object.keys(dadosMapaUF).length ? '' : 'Ainda não há resultados por município para esta eleição.');
+            } catch (err) {
+                console.error(err);
+                if (id === reqMapa) setMapaStatus('Erro ao carregar os municípios. Tente clicar no estado de novo.');
+            }
+        }
+
+        function atualizarEstiloMunicipios() {
+            if (!camadaMunicipios) return;
+            camadaMunicipios.eachLayer(layer => layer.setStyle({ fillColor: corDoResultado(dadosMapaUF[layer.feature.properties.id]) }));
+        }
+
+        function atualizarTooltipsMunicipios() {
+            if (!camadaMunicipios) return;
+            const cargo = ehMunicipal() ? 'Prefeito' : 'Presidente';
+            camadaMunicipios.eachLayer(layer => {
+                const { id, name } = layer.feature.properties;
+                const res = dadosMapaUF[id];
+                layer.setTooltipContent(htmlTooltip(esc(name), cargo, res, 'votos', '👉 Clique para ver todos os cargos'));
+            });
+        }
+
+        function clicarMunicipio(ibge, nomeGeo) {
+            const res = dadosMapaUF[ibge];
+            if (!res || !res.tse) {
+                reqDrawer++;
+                $('drawer-cargos').classList.add('active');
+                $('drawer-estado-titulo').textContent = `🏙️ ${nomeGeo} (${ufAtiva.sigla})`;
+                $('grid-cargos-conteudo').innerHTML = '<div class="msg">Sem resultados deste município para a eleição selecionada.</div>';
+                $('drawer-cargos').scrollIntoView({ behavior: 'smooth' });
+                return;
+            }
+            abrirDrawerCidade(ufAtiva.sigla, res.tse, res.nome || nomeGeo);
+        }
+
+        function sairEstado(recentralizar = true) {
+            if (!ufAtiva) return;
+            ufAtiva = null;
+            reqMapa++;
+            dadosMapaUF = {};
+            if (camadaMunicipios) { map.removeLayer(camadaMunicipios); camadaMunicipios = null; }
+            controleEstado.remove();
+            $('btn-tam-pop').disabled = false;
+            atualizarEstilo();
+            atualizarLegenda();
+            if (recentralizar) enquadrarRegiao();
+        }
+
+        // ===================== LEGENDA =====================
+        const legenda = L.control({ position: 'bottomright' });
+        legenda.onAdd = () => L.DomUtil.create('div', 'legend');
+
+        function coletarLideres() {
+            const resultados = ufAtiva ? Object.values(dadosMapaUF) : Object.values(dadosVotacao);
+            const porCor = new Map();
+            resultados.forEach(res => {
+                const c = res?.candidatos?.[0];
+                if (!c) return;
+                const chave = chaveCor(c);
+                const rotulo = ehMunicipal() ? (c.partido || c.nome) : `${c.nome}${c.partido ? ` (${c.partido})` : ''}`;
+                const item = porCor.get(chave) || { cor: infoCor(chave).legenda, rotulo, n: 0 };
+                item.n++;
+                porCor.set(chave, item);
+            });
+            return [...porCor.values()].sort((a, b) => b.n - a.n).slice(0, 8);
+        }
+
+        function atualizarLegenda() {
+            const div = legenda.getContainer();
+            if (!div) return;
+            let titulo, itens;
+            if (modoCor === 'apuracao') {
+                titulo = 'Urnas Apuradas';
+                itens = ESCALA_APURACAO.map(([, cor, rotulo]) => [cor, rotulo]);
+            } else {
+                titulo = ehMunicipal() ? 'Partido que lidera' : 'Liderança';
+                itens = coletarLideres().map(l => [l.cor, esc(l.rotulo)]);
+                if (!itens.length) itens = [[COR_SEM_DADOS, 'Aguardando dados']];
+            }
+            div.innerHTML = `<div class="legend-title">${titulo}</div>`
+                + itens.map(([cor, rotulo]) => `<i style="background: ${cor}"></i> ${rotulo}`).join('<br>');
+        }
+
+        async function carregarMapa() {
+            for (const url of URLS_GEOJSON) {
+                try { rawGeoJsonData = await getJSON(url); break; } catch { /* tenta a próxima URL */ }
+            }
+            if (!rawGeoJsonData) {
+                const aviso = L.control({ position: 'topright' });
+                aviso.onAdd = () => {
+                    const div = L.DomUtil.create('div', 'legend');
+                    div.innerHTML = '<span class="msg-erro">Não foi possível carregar o mapa dos estados. Recarregue a página.</span>';
+                    return div;
+                };
+                aviso.addTo(map);
+                return;
+            }
+            renderizarCamadaGeoJSON();
+        }
+
+        // ===================== PAINEL DE REGIÕES =====================
+        function atualizarPainelRegioes() {
             let html = '';
+            const rotuloTotal = ehMunicipal() ? 'municípios' : 'votos (pessoas)';
 
             for (const [nomeRegiao, UFs] of Object.entries(REGIOES)) {
-                let votosCandidatos = {}, totalVotosRegiao = 0, somaApuradoPonderado = 0, somaEleitoradoRegiao = 0;
+                const porNome = {};
+                let totalVotos = 0, somaApuradoPonderado = 0, somaEleitorado = 0;
 
                 UFs.forEach(uf => {
                     const est = dadosVotacao[uf];
                     const eleitUF = eleitoradoUF[uf] || 1;
-                    somaEleitoradoRegiao += eleitUF;
-
-                    if (est) {
-                        somaApuradoPonderado += (strToFloatPct(est.apurado) * eleitUF);
-                        if (est.candidatos) {
-                            est.candidatos.forEach(c => {
-                                const vInt = parseInt((c.votos || '0').replace(/\./g, '')) || 0;
-                                votosCandidatos[c.nome] = (votosCandidatos[c.nome] || 0) + vInt;
-                                totalVotosRegiao += vInt;
-                            });
-                        }
-                    }
+                    if (!est && ehMunicipal()) return;   // DF não tem eleição municipal: não entra na média
+                    somaEleitorado += eleitUF;
+                    if (!est) return;
+                    somaApuradoPonderado += strToFloatPct(est.apurado) * eleitUF;
+                    (est.candidatos || []).forEach(c => {
+                        const v = strToInt(c.votos);
+                        porNome[c.nome] = porNome[c.nome] || { nome: c.nome, partido: c.partido, votos: 0 };
+                        porNome[c.nome].votos += v;
+                        totalVotos += v;
+                    });
                 });
 
-                const pctApuradoRegiaoNum = somaEleitoradoRegiao > 0 ? (somaApuradoPonderado / somaEleitoradoRegiao) : 0;
-                let listaCands = Object.keys(votosCandidatos).map(nome => ({
-                    nome: nome, votos: votosCandidatos[nome],
-                    pct: totalVotosRegiao > 0 ? ((votosCandidatos[nome] / totalVotosRegiao) * 100).toFixed(2) : "0.00"
-                })).sort((a, b) => b.votos - a.votos);
+                const pctApurado = somaEleitorado > 0 ? somaApuradoPonderado / somaEleitorado : 0;
+                const top2 = Object.values(porNome).sort((a, b) => b.votos - a.votos).slice(0, 2);
+                const ativo = regiaoFiltro === nomeRegiao ? ' active-region' : '';
 
-                const isActive = (regiaoFiltro === nomeRegiao) ? 'active-region' : '';
+                const linhas = top2.length
+                    ? top2.map((c, i) => {
+                        const pct = totalVotos > 0 ? (c.votos / totalVotos) * 100 : 0;
+                        return htmlLinhaCandidato(i + 1, c, fmtPct(pct), c.votos.toLocaleString('pt-BR'), pct, false);
+                    }).join('')
+                    : '<div class="msg-sm">Aguardando dados...</div>';
 
-                html += `<div class="regiao-card ${isActive}" onclick="alterarRegiaoFiltro('${nomeRegiao}')">`;
-                
-                html += `
-                    <div class="regiao-header">
-                        <span>${nomeRegiao}</span>
-                        <small style="font-weight:400; color:#666;">${totalVotosRegiao.toLocaleString('pt-BR')} votos (pessoas)</small>
+                html += `<div class="regiao-card${ativo}" onclick="alterarRegiaoFiltro('${nomeRegiao}')">
+                    <div class="regiao-header"><span>${nomeRegiao}</span> <small>${totalVotos.toLocaleString('pt-BR')} ${rotuloTotal}</small></div>
+                    <div class="regiao-apuracao-box">
+                        Urnas Apuradas: ${fmtPct(pctApurado)}%
+                        ${htmlBarra(pctApurado, 'bar-5')}
                     </div>
-                    <div class="regiao-apuracao-box" style="margin-bottom: 12px;">
-                        Urnas Apuradas: ${pctApuradoRegiaoNum.toFixed(2).replace('.', ',')}%
-                        <div class="progress-bar-bg" style="height: 5px; margin-top: 4px;">
-                            <div class="progress-bar-fill fill-apuracao" style="width: ${pctApuradoRegiaoNum}%;"></div>
-                        </div>
-                    </div>
-                `;
-
-                if (listaCands.length === 0) {
-                    html += `<div style="font-size:11px; color:#888;">Aguardando dados...</div>`;
-                } else {
-                    listaCands.slice(0, 2).forEach((c, idx) => {
-                        const corBarra = getCorBarraCandidato(c.nome);
-                        html += `
-                            <div class="cand-row" style="margin-bottom: 10px;">
-                                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                                    <span><strong>${idx + 1}º ${c.nome}</strong></span>
-                                    <span><b>${c.pct.replace('.', ',')}%</b> <small style="color: #666;">(${c.votos.toLocaleString('pt-BR')})</small></span>
-                                </div>
-                                <div class="progress-bar-bg" style="height: 6px;">
-                                    <div class="progress-bar-fill" style="width: ${c.pct.replace(',', '.')}%; background-color: ${corBarra};"></div>
-                                </div>
-                            </div>
-                        `;
-                    });
-                }
-
-                html += `</div>`;
+                    ${linhas}
+                </div>`;
             }
 
-            container.innerHTML = html;
+            $('regioes-list').innerHTML = html;
+        }
+
+        // ===================== DADOS DO SERVIDOR =====================
+        function renderizarStatus(comErro) {
+            if (!eleicao.ao_vivo) {
+                $('status-text').innerHTML = `<b>Resultado final</b> <span class="status-prox">(fonte: Portal de Dados Abertos do TSE)</span>`;
+                return;
+            }
+            const proxima = `<span id="contador-tempo">${segundos}</span>s`;
+            const ultima = ultimaAtualizacao
+                ? `Última atualização do servidor: <b>${esc(ultimaAtualizacao)}</b> `
+                : 'Aguardando a primeira leitura do TSE ';
+            $('status-text').innerHTML = comErro
+                ? `${ultima}<span class="status-erro">(Falha na última leitura — nova tentativa em ${proxima})</span>`
+                : `${ultima}<span class="status-prox">(Próxima leitura em ${proxima})</span>`;
+        }
+
+        function atualizarCardsCandidatos(cands) {
+            POSICOES.forEach((pos, i) => {
+                const c = cands[i];
+                $(`br-${pos}-nome`).textContent = c ? c.nome : 'Aguardando...';
+                $(`br-${pos}-votos`).textContent = c ? `${c.percentual}% (${c.votos} ${unidade()})` : `0% (0 ${unidade()})`;
+                const barra = $(`br-bar-${pos}`);
+                if (barra) {
+                    barra.style.width = c ? `${strToFloatPct(c.percentual)}%` : '0%';
+                    barra.style.backgroundColor = c ? getCorBarraCandidato(c) : '';
+                }
+            });
+        }
+
+        function atualizarCardsBrasil(brasil) {
+            $('br-apurado').innerHTML = `${esc(brasil.apurado || '0,00')}% <span class="card-unit">das urnas</span>`;
+            $('br-bar-apurado').style.width = `${strToFloatPct(brasil.apurado)}%`;
+
+            const cands = brasil.candidatos || [];
+            if (ehMunicipal()) {
+                const total = brasil.total_municipios ?? cands.reduce((s, c) => s + strToInt(c.votos), 0);
+                $('br-votos-totais').textContent = `${total.toLocaleString('pt-BR')} municípios com resultado`;
+            } else {
+                const total = cands.reduce((s, c) => s + strToInt(c.votos), 0);
+                $('br-votos-totais').textContent = `${total.toLocaleString('pt-BR')} votos apurados (pessoas)`;
+            }
+            atualizarCardsCandidatos(cands);
         }
 
         async function buscarDadosServidor() {
+            if (buscando) return;
+            buscando = true;
+            segundos = INTERVALO_SEG;
+            const id = reqVotacao;
             try {
-                const res = await fetch('/api/votacao');
-                const data = await res.json();
-                
-                if (data.ultima_atualizacao) {
-                    dadosVotacao = data.estados;
-                    
-                    segundosParaAtualizar = 60;
-                    document.getElementById('status-text').innerHTML = `Última atualização do servidor: <b>${data.ultima_atualizacao}</b> <span style="color: #0056b3; margin-left: 5px;">(Próxima leitura em <span id="contador-tempo">60</span>s)</span>`;
-                    
-                    if (data.brasil) {
-                        
-                        document.getElementById('br-apurado').innerHTML = `${data.brasil.apurado || "0,00"}% <span style="font-size: 13px; font-weight: 500; color: #666;">das urnas</span>`;
-                        document.getElementById('br-bar-apurado').style.width = `${strToFloatPct(data.brasil.apurado)}%`;
-                        
-                        let totalVotosPessoasBrasil = 0;
-                        const cands = data.brasil.candidatos || [];
-                        cands.forEach(c => {
-                            totalVotosPessoasBrasil += parseInt((c.votos || '0').replace(/\./g, '')) || 0;
-                        });
-                        document.getElementById('br-votos-totais').innerText = `${totalVotosPessoasBrasil.toLocaleString('pt-BR')} votos apurados (pessoas)`;
-
-                        if (cands.length > 0) {
-                            document.getElementById('br-lider-nome').innerText = cands[0].nome;
-                            document.getElementById('br-lider-votos').innerText = `${cands[0].percentual}% (${cands[0].votos} votos)`;
-                            document.getElementById('br-bar-lider').style.width = `${strToFloatPct(cands[0].percentual)}%`;
-                            document.getElementById('br-bar-lider').style.backgroundColor = getCorBarraCandidato(cands[0].nome);
-                        }
-                        if (cands.length > 1) {
-                            document.getElementById('br-segundo-nome').innerText = cands[1].nome;
-                            document.getElementById('br-segundo-votos').innerText = `${cands[1].percentual}% (${cands[1].votos} votos)`;
-                            document.getElementById('br-bar-segundo').style.width = `${strToFloatPct(cands[1].percentual)}%`;
-                            document.getElementById('br-bar-segundo').style.backgroundColor = getCorBarraCandidato(cands[1].nome);
-                        }
-                        if (cands.length > 2) {
-                            document.getElementById('br-terceiro-nome').innerText = cands[2].nome;
-                            document.getElementById('br-terceiro-votos').innerText = `${cands[2].percentual}% (${cands[2].votos} votos)`;
-                        }
-                        if (cands.length > 3) {
-                            document.getElementById('br-quarto-nome').innerText = cands[3].nome;
-                            document.getElementById('br-quarto-votos').innerText = `${cands[3].percentual}% (${cands[3].votos} votos)`;
-                        }
-                        if (cands.length > 4) {
-                            document.getElementById('br-quinto-nome').innerText = cands[4].nome;
-                            document.getElementById('br-quinto-votos').innerText = `${cands[4].percentual}% (${cands[4].votos} votos)`;
-                        }
-                    }
-
-                    atualizarEstiloEConteudo();
-                    atualizarPainelRegioes();
-                }
-            } catch (err) {}
-        }
-
-        function atualizarEstiloEConteudo() {
-            if (!geoJsonLayer) return;
-
-            const ufsRegiao = (regiaoFiltro === 'TODAS') ? null : (REGIOES[regiaoFiltro] || []);
-
-            geoJsonLayer.eachLayer(layer => {
-                const sigla = layer.feature.properties.sigla;
-                const nome = layer.feature.properties.name;
-                const estado = dadosVotacao[sigla];
-                const pertenceAoFiltro = !ufsRegiao || ufsRegiao.includes(sigla);
-                let cor = "#cccccc";
-
-                if (estado) {
-                    if (modoCor === 'apuracao') {
-                        cor = getCorApuracao(strToFloatPct(estado.apurado));
-                    } else if (estado.candidatos && estado.candidatos.length > 0) {
-                        cor = getCorLider(estado.candidatos[0].nome, strToFloatPct(estado.candidatos[0].percentual));
-                    }
-                }
-
-                layer.setStyle({
-                    fillColor: cor,
-                    fillOpacity: pertenceAoFiltro ? 0.88 : 0.1,
-                    color: pertenceAoFiltro ? "#ffffff" : "#d0d0d0",
-                    weight: pertenceAoFiltro ? 1.5 : 0.5
-                });
-
-                layer.setTooltipContent(gerarConteudoTooltip(nome, sigla));
-            });
-        }
-
-        function gerarConteudoTooltip(nomeEstado, siglaUF) {
-            const estado = dadosVotacao[siglaUF];
-            const eleit = eleitoradoUF[siglaUF] ? `${eleitoradoUF[siglaUF]}M eleitores` : '';
-            if (!estado || !estado.candidatos) return `<b>${nomeEstado} (${siglaUF})</b> - ${eleit}<br>Clique para ver outros cargos.`;
-
-            let html = `<b>${nomeEstado} (${siglaUF})</b> - <small>${eleit}</small><br>`;
-            html += `Urnas Apuradas: <b>${estado.apurado}%</b>`;
-            html += `<div class="progress-bar-bg"><div class="progress-bar-fill fill-apuracao" style="width: ${strToFloatPct(estado.apurado)}%;"></div></div>`;
-            html += `<hr style="margin:6px 0;">`;
-
-            estado.candidatos.slice(0, 2).forEach((c, index) => {
-                html += `${index + 1}º ${c.nome}: <b>${c.percentual}%</b> (${c.votos} votos)<br>`;
-            });
-            html += `<small style="color: #0056b3; font-weight: bold;">👉 Clique no estado para ver Governadores, Senadores e Deputados</small>`;
-
-            return html;
-        }
-
-        function atualizarLegenda() {
-            if (legendControl) map.removeControl(legendControl);
-
-            legendControl = L.control({ position: 'bottomright' });
-            legendControl.onAdd = function () {
-                const div = L.DomUtil.create('div', 'legend');
-                if (modoCor === 'apuracao') {
-                    div.innerHTML = `<div class="legend-title">Urnas Apuradas</div><i style="background: #15803d"></i> > 80%<br><i style="background: #4ade80"></i> 60-80%<br><i style="background: #fee2e2"></i> < 20%`;
-                } else {
-                    div.innerHTML = `<div class="legend-title">Liderança</div><i style="background: #800000"></i> Lula<br><i style="background: #0056b3"></i> Bolsonaro`;
-                }
-                return div;
-            };
-            legendControl.addTo(map);
-        }
-
-        window.addEventListener('resize', () => { if (map) map.invalidateSize(); });
-
-        aplicarEstadoSidebar();
-
-        fetch('https://raw.githubusercontent.com/codeforamerica/click_that_hood/master/public/data/brazil-states.geojson')
-            .then(res => res.json())
-            .then(geoJsonData => {
-                rawGeoJsonData = geoJsonData;
-                renderizarCamadaGeoJSON();
+                const data = await getJSON(`/api/votacao${qs()}`);
+                if (id !== reqVotacao) return;   // usuário trocou de eleição no meio da leitura
+                dadosVotacao = data.estados || {};
+                ultimaAtualizacao = data.ultima_atualizacao;
+                renderizarStatus(false);
+                if (data.brasil) atualizarCardsBrasil(data.brasil);
+                atualizarEstilo();
+                atualizarTooltips();
+                atualizarPainelRegioes();
                 atualizarLegenda();
-                buscarDadosServidor();
-                setInterval(buscarDadosServidor, 60000); 
-            });
+                if (ufAtiva && eleicao.ao_vivo) carregarMapaEstado(true);
+            } catch (err) {
+                console.error('Falha ao buscar /api/votacao:', err);
+                if (id === reqVotacao) renderizarStatus(true);
+            } finally {
+                buscando = false;
+                if (id !== reqVotacao) buscarDadosServidor();  // a eleição mudou durante a leitura: busca a nova
+            }
+        }
+
+        // ===================== INICIALIZAÇÃO =====================
+        popularSelects();
+        aplicarEstadoSidebar();
+        legenda.addTo(map);
+        atualizarLegenda();
+        carregarMapa();
+        carregarCatalogo();
+
+        // Um único relógio controla o contador e a próxima leitura (só em eleições ao vivo)
+        setInterval(() => {
+            if (!eleicao.ao_vivo) return;
+            segundos = Math.max(0, segundos - 1);
+            const relogio = $('contador-tempo');
+            if (relogio) relogio.textContent = segundos;
+            if (segundos === 0) buscarDadosServidor();
+        }, 1000);
     </script>
 </body>
 </html>
