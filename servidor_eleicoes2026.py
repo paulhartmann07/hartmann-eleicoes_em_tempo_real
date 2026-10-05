@@ -97,32 +97,35 @@ def buscar_abrangencia(local):
 def recolher_dados():
     global dados_cache
     while True:
-        hora_atual = time.strftime("%H:%M:%S")
-        locais = ['BR'] + ESTADOS
-        
-        # Consulta de forma concorrente e atualiza o cache progressivamente
-        with ThreadPoolExecutor(max_workers=8) as executor:
-            future_to_local = {executor.submit(buscar_abrangencia, loc): loc for loc in locais}
-            
-            for future in as_completed(future_to_local):
-                local = future_to_local[future]
-                try:
-                    local_res, dados = future.result()
-                    if local_res == 'BR':
-                        dados_cache["brasil"] = dados
-                    else:
-                        dados_cache["estados"][local_res] = dados
-                    
-                    dados_cache["ultima_atualizacao"] = hora_atual
-                except Exception as e:
-                    print(f"  [ERRO EXECUTOR] {local}: {e}")
-
-        # Salva o arquivo de cache no disco para próximos deploys/restarts
         try:
+            hora_atual = time.strftime("%H:%M:%S")
+            print(f"  [LOOP] Iniciando ciclo de atualização das {hora_atual}...", flush=True)
+            locais = ['BR'] + ESTADOS
+            
+            with ThreadPoolExecutor(max_workers=8) as executor:
+                future_to_local = {executor.submit(buscar_abrangencia, loc): loc for loc in locais}
+                
+                for future in as_completed(future_to_local):
+                    local = future_to_local[future]
+                    try:
+                        local_res, dados = future.result()
+                        if local_res == 'BR':
+                            dados_cache["brasil"] = dados
+                        else:
+                            dados_cache["estados"][local_res] = dados
+                        
+                        dados_cache["ultima_atualizacao"] = hora_atual
+                    except Exception as e:
+                        print(f"  [ERRO EXECUTOR] {local}: {e}", flush=True)
+
+            print(f"  [LOOP] Ciclo finalizado com sucesso às {hora_atual}! Brasil apurado: {dados_cache['brasil'].get('apurado', '0,00')}%", flush=True)
+
+            # Salva o cache no disco
             with open(ARQUIVO_CACHE, 'w', encoding='utf-8') as f:
                 json.dump(dados_cache, f, ensure_ascii=False, indent=2)
-        except Exception:
-            pass
+
+        except Exception as global_err:
+            print(f"  [ERRO CRÍTICO NO LOOP]: {global_err}", flush=True)
 
         time.sleep(60)
 
