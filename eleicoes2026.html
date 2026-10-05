@@ -27,6 +27,53 @@
         .status-text { font-size: 13px; font-weight: 500; color: #65676b; background: #e4e6eb; padding: 6px 12px; border-radius: 6px; }
         .status-text b { color: #1c1e21; }
 
+        /* Cards secundários de 3º, 4º e 5º lugar */
+        .header-outros-candidatos { 
+            display: grid; 
+            grid-template-columns: repeat(3, 1fr); 
+            gap: 10px; 
+            margin-bottom: 15px; 
+        }
+        .card-outro { 
+            background: #ffffff; 
+            padding: 10px 12px; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05); 
+            border-left: 4px solid #6c757d; 
+            overflow: hidden; 
+        }
+        .card-title-sm { 
+            font-size: 10px; 
+            font-weight: 700; 
+            text-transform: uppercase; 
+            color: #65676b; 
+            margin-bottom: 2px; 
+        }
+        .card-value-sm { 
+            font-size: 13px; 
+            font-weight: 700; 
+            color: #050505; 
+            white-space: nowrap; 
+            overflow: hidden; 
+            text-overflow: ellipsis; 
+        }
+        .card-sub-sm { 
+            font-size: 11px; 
+            color: #65676b; 
+            margin-top: 2px; 
+            white-space: nowrap; 
+            overflow: hidden; 
+            text-overflow: ellipsis; 
+        }
+
+        @media (max-width: 900px) {
+            .header-outros-candidatos { gap: 6px; }
+            .card-outro { padding: 8px; }
+            .card-title-sm { font-size: 9px; }
+            .card-value-sm { font-size: 11px; }
+            .card-sub-sm { font-size: 10px; }
+        }
+
         /* BARRA DE PESQUISA DE MUNICÍPIO OTIMIZADA */
         .search-city-bar {
             background: #ffffff;
@@ -176,6 +223,25 @@
             <div class="card-value" id="br-segundo-nome">Aguardando...</div>
             <div class="card-sub" id="br-segundo-votos">0% (0 votos)</div>
             <div class="progress-bar-bg"><div id="br-bar-segundo" class="progress-bar-fill" style="width: 0%;"></div></div>
+        </div>
+    </div>
+
+    <!-- CARDS DE 3º, 4º E 5º LUGAR -->
+    <div class="header-outros-candidatos">
+        <div class="card-outro">
+            <div class="card-title-sm">3º Lugar Geral</div>
+            <div class="card-value-sm" id="br-terceiro-nome">Aguardando...</div>
+            <div class="card-sub-sm" id="br-terceiro-votos">0% (0 votos)</div>
+        </div>
+        <div class="card-outro">
+            <div class="card-title-sm">4º Lugar Geral</div>
+            <div class="card-value-sm" id="br-quarto-nome">Aguardando...</div>
+            <div class="card-sub-sm" id="br-quarto-votos">0% (0 votos)</div>
+        </div>
+        <div class="card-outro">
+            <div class="card-title-sm">5º Lugar Geral</div>
+            <div class="card-value-sm" id="br-quinto-nome">Aguardando...</div>
+            <div class="card-sub-sm" id="br-quinto-votos">0% (0 votos)</div>
         </div>
     </div>
 
@@ -816,6 +882,18 @@
                             document.getElementById('br-segundo-votos').innerText = `${cands[1].percentual}% (${cands[1].votos} votos)`;
                             document.getElementById('br-bar-segundo').style.width = `${strToFloatPct(cands[1].percentual)}%`;
                             document.getElementById('br-bar-segundo').style.backgroundColor = getCorBarraCandidato(cands[1].nome);
+                        }
+                        if (cands.length > 2) {
+                            document.getElementById('br-terceiro-nome').innerText = cands[2].nome;
+                            document.getElementById('br-terceiro-votos').innerText = `${cands[2].percentual}% (${cands[2].votos} votos)`;
+                        }
+                        if (cands.length > 3) {
+                            document.getElementById('br-quarto-nome').innerText = cands[3].nome;
+                            document.getElementById('br-quarto-votos').innerText = `${cands[3].percentual}% (${cands[3].votos} votos)`;
+                        }
+                        if (cands.length > 4) {
+                            document.getElementById('br-quinto-nome').innerText = cands[4].nome;
+                            document.getElementById('br-quinto-votos').innerText = `${cands[4].percentual}% (${cands[4].votos} votos)`;
                         }
                     }
 
