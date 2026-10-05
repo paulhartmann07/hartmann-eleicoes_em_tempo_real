@@ -1,7 +1,7 @@
 import json
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 import requests
@@ -22,11 +22,22 @@ CODIGO_ELEICAO_EST = "e006259"
 
 ARQUIVO_CACHE = "dados_cache.json"
 
+# Inicialização do Cache: Tenta ler o arquivo local se ele já existir
 dados_cache = {
     "ultima_atualizacao": "Inicializando...",
     "brasil": {"apurado": "0,00", "candidatos": []},
     "estados": {}
 }
+
+if os.path.exists(ARQUIVO_CACHE):
+    try:
+        with open(ARQUIVO_CACHE, 'r', encoding='utf-8') as f:
+            dados_carregados = json.load(f)
+            if "brasil" in dados_carregados and "estados" in dados_carregados:
+                dados_cache = dados_carregados
+                print("  [CACHE] Dados anteriores do disco carregados com sucesso!")
+    except Exception as e:
+        print(f"  [CACHE ERRO] Falha ao ler arquivo local: {e}")
 
 quarentena_404 = {}
 cache_municipios = {}
@@ -77,7 +88,7 @@ def buscar_abrangencia(local):
             pst, candidatos = processar_json_tse(resp.json(), limit=5)
             return local, {'apurado': pst, 'candidatos': candidatos}
         elif resp.status_code == 404:
-            quarentena_404[local] = agora + 180
+            quarentena_404[local] = agora + 60
     except Exception as e:
         print(f"  [ERRO] {local}: {e}")
         
@@ -88,23 +99,25 @@ def recolher_dados():
     while True:
         hora_atual = time.strftime("%H:%M:%S")
         locais = ['BR'] + ESTADOS
-        novos_estados = {}
-        dados_br = {"apurado": "0,00", "candidatos": []}
         
-        with ThreadPoolExecutor(max_workers=6) as executor:
-            resultados = executor.map(buscar_abrangencia, locais)
-            for local, dados in resultados:
-                if local == 'BR':
-                    dados_br = dados
-                else:
-                    novos_estados[local] = dados
-        
-        dados_cache = {
-            "ultima_atualizacao": hora_atual,
-            "brasil": dados_br,
-            "estados": novos_estados
-        }
+        # Consulta de forma concorrente e atualiza o cache progressivamente
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            future_to_local = {executor.submit(buscar_abrangencia, loc): loc for loc in locais}
+            
+            for future in as_completed(future_to_local):
+                local = future_to_local[future]
+                try:
+                    local_res, dados = future.result()
+                    if local_res == 'BR':
+                        dados_cache["brasil"] = dados
+                    else:
+                        dados_cache["estados"][local_res] = dados
+                    
+                    dados_cache["ultima_atualizacao"] = hora_atual
+                except Exception as e:
+                    print(f"  [ERRO EXECUTOR] {local}: {e}")
 
+        # Salva o arquivo de cache no disco para próximos deploys/restarts
         try:
             with open(ARQUIVO_CACHE, 'w', encoding='utf-8') as f:
                 json.dump(dados_cache, f, ensure_ascii=False, indent=2)
@@ -126,7 +139,7 @@ def index():
 def obter_votacao():
     return jsonify(dados_cache)
 
-# ROTA CORRIGIDA PARA OBTER A LISTA DE MUNICÍPIOS DO TSE
+# ROTA MUNICÍPIOS
 @app.route('/api/municipios/<uf>', methods=['GET'])
 def obter_municipios(uf):
     uf_upper = uf.upper()
@@ -164,14 +177,13 @@ def obter_municipios(uf):
                         cache_municipios[sigla.upper()] = lista_muns
                         
                 if uf_upper in cache_municipios:
-                    print(f"  [MUNICÍPIOS] {uf_upper}: {len(cache_municipios[uf_upper])} cidades carregadas.")
                     return jsonify(cache_municipios[uf_upper])
         except Exception as e:
             print(f"  [ERRO MUNICÍPIOS] {url}: {e}")
             
     return jsonify([])
 
-# ENDPOINT SOB DEMANDA: ESTADO COMPLETO
+# ENDPOINT ESTADO COMPLETO
 @app.route('/api/detalhes/<uf>', methods=['GET'])
 def obter_detalhes_estado(uf):
     sigla = uf.lower()
@@ -201,7 +213,7 @@ def obter_detalhes_estado(uf):
             
     return jsonify(resultado_detalhado)
 
-# ENDPOINT SOB DEMANDA: MUNICÍPIO ESPECÍFICO (PRESIDENTE + GOVERNADOR + SENADOR + DEPUTADOS)
+# ENDPOINT MUNICÍPIO ESPECÍFICO
 @app.route('/api/detalhes/<uf>/<cd_mun>', methods=['GET'])
 def obter_detalhes_municipio(uf, cd_mun):
     sigla = uf.lower()
@@ -234,6 +246,5 @@ def obter_detalhes_municipio(uf, cd_mun):
     return jsonify(resultado_detalhado)
 
 if __name__ == '__main__':
-    # A nuvem injeta a porta automaticamente na variável de ambiente PORT
     porta = int(os.environ.get("PORT", 5001))
     app.run(host='0.0.0.0', port=porta)
