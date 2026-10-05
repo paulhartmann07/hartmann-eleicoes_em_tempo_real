@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apuração Presidencial 2026 - Completa</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 15px; background: #f0f2f5; color: #1c1e21; }
+        
+        .header-dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin-bottom: 15px; }
+        .card { background: #ffffff; padding: 16px 18px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-left: 5px solid #0056b3; }
+        .card.apuracao { border-left-color: #28a745; }
+        .card.lider { border-left-color: #0056b3; }
+        .card.segundo { border-left-color: #d9381e; }
+        
+        .card-title { font-size: 11px; font-weight: 600; text-transform: uppercase; color: #65676b; margin-bottom: 4px; }
+        .card-value { font-size: 20px; font-weight: 700; color: #050505; }
+        .card-sub { font-size: 12px; color: #65676b; margin-top: 4px; margin-bottom: 6px; }
+
+        .progress-bar-bg { width: 100%; height: 8px; background-color: #e4e6eb; border-radius: 4px; overflow: hidden; margin-top: 4px; }
+        .progress-bar-fill { height: 100%; border-radius: 4px; transition: width 0.6s ease-in-out, background-color 0.3s ease; }
+        .fill-apuracao { background-color: #28a745; }
+
+        .controls-bar { margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+        .status-text { font-size: 13px; font-weight: 500; color: #65676b; background: #e4e6eb; padding: 6px 12px; border-radius: 6px; }
+        .status-text b { color: #1c1e21; }
+
+        /* BARRA DE PESQUISA DE MUNICÍPIO OTIMIZADA */
+        .search-city-bar {
+            background: #ffffff;
+            padding: 12px 16px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            margin-bottom: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .search-title { font-size: 13px; font-weight: 700; color: #0056b3; text-transform: uppercase; }
+        .search-inputs-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+        }
+        .search-select, .search-input {
+            padding: 10px 12px;
+            font-size: 13px;
+            border: 1px solid #ced0d4;
+            border-radius: 6px;
+            outline: none;
+            background: #f8f9fa;
+            box-sizing: border-box;
+        }
+        .search-select { min-width: 90px; font-weight: 700; }
+        
+        /* CONTÊINER DO AUTOCOMPLETAR CUSTOMIZADO */
+        .autocomplete-container {
+            position: relative;
+            flex: 1;
+            width: 100%;
+        }
+        .search-input {
+            width: 100%;
+        }
+        .autocomplete-items {
+            position: absolute;
+            border: 1px solid #ced0d4;
+            border-top: none;
+            z-index: 9999;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background-color: #ffffff;
+            border-radius: 0 0 8px 8px;
+            max-height: 220px;
+            overflow-y: auto;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+            display: none;
+        }
+        .autocomplete-items div {
+            padding: 12px 14px;
+            cursor: pointer;
+            font-size: 13px;
+            border-bottom: 1px solid #f0f2f5;
+            transition: background 0.15s ease;
+        }
+        .autocomplete-items div:hover {
+            background-color: #e7f0fa;
+            color: #0056b3;
+            font-weight: 600;
+        }
+
+        .search-btn {
+            background: #0056b3;
+            color: #ffffff;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s ease;
+            white-space: nowrap;
+        }
+        .search-btn:hover { background: #004085; }
+        
+        .toggle-container { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+        .toggle-group { display: flex; background: #e4e6eb; padding: 3px; border-radius: 8px; }
+        .btn-toggle { border: none; background: transparent; padding: 7px 12px; font-size: 12px; font-weight: 600; color: #4b4d4e; border-radius: 6px; cursor: pointer; transition: all 0.2s ease; }
+        .btn-toggle.active { background: #ffffff; color: #050505; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+
+        .select-regiao-btn { background: #ffffff; border: 1px solid #ced0d4; padding: 6px 10px; font-size: 12px; font-weight: 700; color: #1c1e21; border-radius: 8px; cursor: pointer; outline: none; }
+
+        .main-layout { display: flex; gap: 15px; align-items: flex-start; width: 100%; }
+        #map { flex: 1; height: 600px; width: 100%; border-radius: 10px; background: #e9e9ed; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+
+        .sidebar-regioes { width: 340px; max-height: 600px; overflow-y: auto; background: #ffffff; padding: 16px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); box-sizing: border-box; }
+        .sidebar-regioes.hidden { display: none !important; }
+        .sidebar-title { font-size: 13px; font-weight: 700; text-transform: uppercase; color: #1c1e21; margin-bottom: 10px; border-bottom: 2px solid #e4e6eb; padding-bottom: 6px; }
+        
+        .regiao-card { background: #f8f9fa; border: 2px solid #e4e6eb; border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; cursor: pointer; transition: all 0.2s ease; }
+        .regiao-card:hover { border-color: #0056b3; background: #f0f4f9; }
+        .regiao-card.active-region { border-color: #0056b3; background: #e7f0fa; }
+
+        /* MODAL / DRAWER DE OUTROS CARGOS */
+        .drawer-cargos { margin-top: 15px; background: #ffffff; border-radius: 10px; padding: 18px 20px; box-shadow: 0 4px 16px rgba(0,0,0,0.08); display: none; }
+        .drawer-cargos.active { display: block; }
+        .drawer-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e4e6eb; padding-bottom: 8px; margin-bottom: 15px; }
+        .drawer-title { font-size: 16px; font-weight: 700; color: #050505; }
+        .btn-close { background: #e4e6eb; border: none; border-radius: 50%; width: 28px; height: 28px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+
+        .grid-cargos { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 15px; }
+        .cargo-box { background: #f8f9fa; border: 1px solid #e4e6eb; border-radius: 8px; padding: 12px 14px; }
+        .cargo-box-title { font-size: 13px; font-weight: 700; text-transform: uppercase; color: #0056b3; margin-bottom: 10px; border-bottom: 1px solid #e4e6eb; padding-bottom: 4px; }
+
+        .legend { background: rgba(255, 255, 255, 0.95); padding: 10px 14px; font-size: 11px; font-weight: 600; line-height: 18px; color: #333; box-shadow: 0 2px 10px rgba(0,0,0,0.15); border-radius: 8px; }
+        .legend-title { font-size: 12px; font-weight: 700; margin-bottom: 4px; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+        .legend i { width: 14px; height: 14px; float: left; margin-right: 6px; border-radius: 3px; }
+
+        /* AJUSTES PARA DISPOSITIVOS MÓVEIS */
+        @media (max-width: 900px) {
+            body { padding: 8px; }
+            .controls-bar { flex-direction: column; align-items: stretch; gap: 8px; }
+            .search-inputs-wrapper { flex-direction: column; align-items: stretch; }
+            .search-select, .search-btn { width: 100%; }
+            .main-layout { display: block; } 
+            #map { width: 100% !important; height: 55vh !important; min-height: 450px !important; margin-bottom: 15px; }
+            .sidebar-regioes { width: 100% !important; max-height: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Apuração Presidencial em Tempo Real</h2>
+    
+    <div class="header-dashboard">
+        <div class="card apuracao">
+            <div class="card-title">Status da Apuração (Brasil)</div>
+            <div class="card-value" id="br-apurado">0,00% <span style="font-size: 13px; font-weight: 500; color: #666;">das urnas</span></div>
+            <div class="card-sub" id="br-votos-totais" style="color: #0056b3; font-weight: 600;">0 votos apurados (pessoas)</div>
+            <div class="progress-bar-bg"><div id="br-bar-apurado" class="progress-bar-fill fill-apuracao" style="width: 0%;"></div></div>
+        </div>
+
+        <div class="card lider">
+            <div class="card-title">1º Lugar Geral</div>
+            <div class="card-value" id="br-lider-nome">Aguardando...</div>
+            <div class="card-sub" id="br-lider-votos">0% (0 votos)</div>
+            <div class="progress-bar-bg"><div id="br-bar-lider" class="progress-bar-fill" style="width: 0%;"></div></div>
+        </div>
+
+        <div class="card segundo">
+            <div class="card-title">2º Lugar Geral</div>
+            <div class="card-value" id="br-segundo-nome">Aguardando...</div>
+            <div class="card-sub" id="br-segundo-votos">0% (0 votos)</div>
+            <div class="progress-bar-bg"><div id="br-bar-segundo" class="progress-bar-fill" style="width: 0%;"></div></div>
+        </div>
+    </div>
+
+    <!-- BARRA DE PESQUISA INTELIGENTE POR CIDADE -->
+    <div class="search-city-bar">
+        <span class="search-title">🔍 Pesquisar Votação Municipal:</span>
+        <div class="search-inputs-wrapper">
+            <select id="search-uf" class="search-select" onchange="carregarCidadesEstado(this.value)">
+                <option value="">UF...</option>
+                <option value="AC">AC</option><option value="AL">AL</option><option value="AM">AM</option><option value="AP">AP</option>
+                <option value="BA">BA</option><option value="CE">CE</option><option value="DF">DF</option><option value="ES">ES</option>
+                <option value="GO">GO</option><option value="MA">MA</option><option value="MG">MG</option><option value="MS">MS</option>
+                <option value="MT">MT</option><option value="PA">PA</option><option value="PB">PB</option><option value="PE">PE</option>
+                <option value="PI">PI</option><option value="PR">PR</option><option value="RJ">RJ</option><option value="RN">RN</option>
+                <option value="RO">RO</option><option value="RR">RR</option><option value="RS">RS</option><option value="SC">SC</option>
+                <option value="SE">SE</option><option value="SP">SP</option><option value="TO">TO</option>
+            </select>
+
+            <div class="autocomplete-container">
+                <input type="text" id="input-cidade" class="search-input" placeholder="Selecione a UF primeiro..." autocomplete="off" disabled oninput="filtrarCidades(this.value)" />
+                <div id="autocomplete-list" class="autocomplete-items"></div>
+            </div>
+
+            <button class="search-btn" onclick="executarPesquisaCidade()">🔍 Pesquisar</button>
+        </div>
+    </div>
+
+    <div class="controls-bar">
+        <div class="status-text" id="status-text">
+            Aguardando conexão com o servidor...
+        </div>
+        
+        <div class="toggle-container">
+            <button id="btn-toggle-sidebar" class="btn-toggle" onclick="toggleSidebar()">📊 Regiões</button>
+
+            <select id="select-regiao" class="select-regiao-btn" onchange="alterarRegiaoFiltro(this.value)">
+                <option value="TODAS">🇧🇷 Todas as Regiões</option>
+                <option value="Sudeste">📍 Sudeste</option>
+                <option value="Sul">📍 Sul</option>
+                <option value="Nordeste">📍 Nordeste</option>
+                <option value="Centro-Oeste">📍 Centro-Oeste</option>
+                <option value="Norte">📍 Norte</option>
+            </select>
+
+            <div class="toggle-group">
+                <button id="btn-cor-lider" class="btn-toggle active" onclick="alterarModoCor('lideranca')">Liderança</button>
+                <button id="btn-cor-apuracao" class="btn-toggle" onclick="alterarModoCor('apuracao')">Heatmap</button>
+            </div>
+
+            <div class="toggle-group">
+                <button id="btn-tam-geo" class="btn-toggle active" onclick="alterarModoTamanho('geografico')">Geográfico</button>
+                <button id="btn-tam-pop" class="btn-toggle" onclick="alterarModoTamanho('populacao')">Proporcional</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-layout">
+        <div id="map"></div>
+
+        <div class="sidebar-regioes" id="sidebar-regioes">
+            <div class="sidebar-title">Resultado por Região</div>
+            <div id="regioes-list"><div style="font-size: 13px; color: #666;">Carregando regiões...</div></div>
+        </div>
+    </div>
+
+    <!-- PAINEL INFERIOR SOB DEMANDA: ESTADO OU CIDADE -->
+    <div class="drawer-cargos" id="drawer-cargos">
+        <div class="drawer-header">
+            <div class="drawer-title" id="drawer-estado-titulo">🏛️ Outras Votações</div>
+            <button class="btn-close" onclick="fecharDrawer()">✕</button>
+        </div>
+        <div class="grid-cargos" id="grid-cargos-conteudo">
+            <div style="font-size: 13px; color: #666;">Selecione um estado no mapa ou pesquise uma cidade acima para ver a apuração completa.</div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const map = L.map('map', { center: [-14.2350, -51.9253], zoom: 4 });
+        let geoJsonLayer = null;
+        let legendControl = null;
+        let rawGeoJsonData = null;
+        let dadosVotacao = {};
+        
+        let listaCidadesMapa = []; 
+        let cidadeSelecionadaObjeto = null;
+
+        let modoCor = 'lideranca';
+        let modoTamanho = 'geografico';
+        let regiaoFiltro = 'TODAS';
+        let sidebarVisivel = window.innerWidth > 900; 
+
+        let segundosParaAtualizar = 60;
+        setInterval(() => {
+            segundosParaAtualizar--;
+            if (segundosParaAtualizar < 0) segundosParaAtualizar = 0;
+            const relogio = document.getElementById('contador-tempo');
+            if (relogio) relogio.innerText = segundosParaAtualizar;
+        }, 1000);
+
+        const centroBrasil = [-51.9253, -14.2350];
+
+        const REGIOES = {
+            'Sudeste': ['SP', 'MG', 'RJ', 'ES'],
+            'Sul': ['PR', 'RS', 'SC'],
+            'Nordeste': ['BA', 'PE', 'CE', 'MA', 'PB', 'RN', 'AL', 'PI', 'SE'],
+            'Centro-Oeste': ['DF', 'GO', 'MT', 'MS'],
+            'Norte': ['PA', 'AM', 'RO', 'TO', 'AC', 'AP', 'RR']
+        };
+
+        const eleitoradoUF = {
+            'SP': 34.1, 'MG': 16.3, 'RJ': 13.0, 'BA': 11.3, 'RS': 8.6, 'PR': 8.6,
+            'PE': 7.2,  'CE': 6.9,  'PA': 6.1,  'MA': 5.4,  'SC': 5.5, 'GO': 4.9,
+            'PB': 3.1,  'ES': 2.9,  'AM': 2.8,  'RN': 2.6,  'PI': 2.6, 'MT': 2.5,
+            'AL': 2.4,  'DF': 2.2,  'MS': 2.0,  'SE': 1.7,  'RO': 1.2, 'TO': 1.1,
+            'AC': 0.6,  'AP': 0.55, 'RR': 0.38
+        };
+
+        function aplicarEstadoSidebar() {
+            const sidebar = document.getElementById('sidebar-regioes');
+            const btn = document.getElementById('btn-toggle-sidebar');
+            if (sidebarVisivel) {
+                sidebar.classList.remove('hidden');
+                btn.classList.add('active');
+                btn.innerText = "📊 Regiões (Visível)";
+            } else {
+                sidebar.classList.add('hidden');
+                btn.classList.remove('active');
+                btn.innerText = "📊 Regiões (Oculto)";
+            }
+            setTimeout(() => { if (map) map.invalidateSize(); }, 200);
+        }
+
+        function toggleSidebar() { sidebarVisivel = !sidebarVisivel; aplicarEstadoSidebar(); }
+
+        function strToFloatPct(str) { return parseFloat((str || '0').replace(',', '.')) || 0; }
+
+        function normalizarTexto(str) {
+            return (str || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+        }
+
+        function getCorBarraCandidato(nomeCandidate) {
+            const upper = (nomeCandidate || '').toUpperCase();
+            if (upper.includes('LULA')) return '#d9381e';       
+            if (upper.includes('BOLSONARO')) return '#0056b3';  
+            return '#6c757d';                                   
+        }
+
+        function getCorApuracao(pct) {
+            if (pct >= 80) return '#15803d';
+            if (pct >= 60) return '#4ade80';
+            if (pct >= 50) return '#bbf7d0';
+            if (pct >= 40) return '#fef08a';
+            if (pct >= 20) return '#ffedd5';
+            return '#fee2e2';
+        }
+
+        function getCorLider(nomeLider, pct) {
+            const upper = (nomeLider || '').toUpperCase();
+            if (upper.includes('LULA')) {
+                if (pct >= 60) return '#800000';
+                if (pct >= 50) return '#b30000';
+                if (pct >= 40) return '#e63946';
+                return '#ff8888';
+            } else if (upper.includes('BOLSONARO')) {
+                if (pct >= 60) return '#002855';
+                if (pct >= 50) return '#004085';
+                if (pct >= 40) return '#0056b3';
+                return '#66b2ff';
+            }
+            return '#cccccc';
+        }
+
+        // CARREGA A LISTA DE CIDADES DA UF SELECIONADA
+        async function carregarCidadesEstado(uf) {
+            const inputCidade = document.getElementById('input-cidade');
+            const listDiv = document.getElementById('autocomplete-list');
+            
+            inputCidade.value = '';
+            listDiv.innerHTML = '';
+            listDiv.style.display = 'none';
+            listaCidadesMapa = [];
+            cidadeSelecionadaObjeto = null;
+
+            if (!uf) {
+                inputCidade.disabled = true;
+                inputCidade.placeholder = "Selecione a UF primeiro...";
+                return;
+            }
+
+            inputCidade.disabled = true;
+            inputCidade.placeholder = `Carregando cidades de ${uf}...`;
+
+            try {
+                const res = await fetch(`/api/municipios/${uf}`);
+                const data = await res.json();
+
+                if (!data || data.length === 0) {
+                    inputCidade.placeholder = "Nenhuma cidade encontrada.";
+                    return;
+                }
+
+                listaCidadesMapa = data;
+                inputCidade.disabled = false;
+                inputCidade.placeholder = `Digite para buscar entre ${data.length} cidades de ${uf}...`;
+
+            } catch (err) {
+                inputCidade.placeholder = "Erro ao carregar cidades.";
+            }
+        }
+
+        // FILTRA AS CIDADES CONFORME O USUÁRIO DIGITA (AUTOCOMPLETE INTELIGENTE)
+        function filtrarCidades(termo) {
+            const listDiv = document.getElementById('autocomplete-list');
+            listDiv.innerHTML = '';
+            cidadeSelecionadaObjeto = null;
+
+            const valNorm = normalizarTexto(termo);
+            if (!valNorm || !listaCidadesMapa.length) {
+                listDiv.style.display = 'none';
+                return;
+            }
+
+            // Filtra ignorando acentos
+            const correspondencias = listaCidadesMapa.filter(m =>
+                normalizarTexto(m.nome).includes(valNorm)
+            ).slice(0, 15); // Exibe no máximo 15 sugestões por vez para agilidade
+
+            if (correspondencias.length === 0) {
+                listDiv.style.display = 'none';
+                return;
+            }
+
+            correspondencias.forEach(m => {
+                const itemDiv = document.createElement('div');
+                itemDiv.innerText = m.nome;
+                itemDiv.addEventListener('click', function() {
+                    document.getElementById('input-cidade').value = m.nome;
+                    cidadeSelecionadaObjeto = m;
+                    listDiv.style.display = 'none';
+                    executarPesquisaCidade(); // Consulta a cidade imediatamente ao clicar
+                });
+                listDiv.appendChild(itemDiv);
+            });
+
+            listDiv.style.display = 'block';
+        }
+
+        // ESCONDE O AUTOCOMPLETE AO CLICAR FORA DO CAMPO
+        document.addEventListener('click', function (e) {
+            if (!e.target.closest('.autocomplete-container')) {
+                const listDiv = document.getElementById('autocomplete-list');
+                if (listDiv) listDiv.style.display = 'none';
+            }
+        });
+
+        // EXECUTA A PESQUISA DA CIDADE
+        async function executarPesquisaCidade() {
+            const uf = document.getElementById('search-uf').value;
+            const inputCidade = document.getElementById('input-cidade');
+            const termoDigitado = normalizarTexto(inputCidade.value);
+
+            if (!uf || !termoDigitado) {
+                alert('Por favor, selecione a UF e digite o nome de uma cidade.');
+                return;
+            }
+
+            // Tenta encontrar pela cidade previamente clicada ou busca exata na lista
+            let cidadeAlvo = cidadeSelecionadaObjeto;
+            if (!cidadeAlvo) {
+                cidadeAlvo = listaCidadesMapa.find(m => normalizarTexto(m.nome) === termoDigitado) ||
+                             listaCidadesMapa.find(m => normalizarTexto(m.nome).includes(termoDigitado));
+            }
+
+            if (!cidadeAlvo) {
+                alert(`A cidade "${inputCidade.value}" não foi encontrada no estado de ${uf}. Escolha uma opção da lista sugerida.`);
+                return;
+            }
+
+            const drawer = document.getElementById('drawer-cargos');
+            const titulo = document.getElementById('drawer-estado-titulo');
+            const conteudo = document.getElementById('grid-cargos-conteudo');
+
+            drawer.classList.add('active');
+            titulo.innerText = `🏙️ Apuração Completa em ${cidadeAlvo.nome} (${uf})`;
+            conteudo.innerHTML = `<div style="font-size: 13px; color: #0056b3;">🔄 Consultando votação oficial em ${cidadeAlvo.nome}...</div>`;
+
+            drawer.scrollIntoView({ behavior: 'smooth' });
+
+            try {
+                const res = await fetch(`/api/detalhes/${uf}/${cidadeAlvo.codigo}`);
+                const data = await res.json();
+
+                renderizarGradeCargos(data.cargos, uf, conteudo);
+
+            } catch (err) {
+                conteudo.innerHTML = `<div style="font-size: 13px; color: #d9381e;">Erro ao carregar dados da cidade.</div>`;
+            }
+        }
+
+        // CARREGA DETALHES AO CLICAR EM UM ESTADO NO MAPA
+        async function carregarDetalhesEstado(siglaUF, nomeEstado) {
+            const drawer = document.getElementById('drawer-cargos');
+            const titulo = document.getElementById('drawer-estado-titulo');
+            const conteudo = document.getElementById('grid-cargos-conteudo');
+
+            drawer.classList.add('active');
+            titulo.innerText = `🏛 Apuração de Outros Cargos - ${nomeEstado} (${siglaUF})`;
+            conteudo.innerHTML = `<div style="font-size: 13px; color: #0056b3;">🔄 Consultando apuração de Governadores, Senadores e Deputados no TSE...</div>`;
+
+            drawer.scrollIntoView({ behavior: 'smooth' });
+
+            try {
+                const res = await fetch(`/api/detalhes/${siglaUF}`);
+                const data = await res.json();
+
+                renderizarGradeCargos(data.cargos, siglaUF, conteudo);
+
+            } catch (err) {
+                conteudo.innerHTML = `<div style="font-size: 13px; color: #d9381e;">Erro ao carregar apuração do estado.</div>`;
+            }
+        }
+
+        // RENDERIZA A GRADE DE CARGOS NO PAINEL INFERIOR
+        function renderizarGradeCargos(cargosData, uf, container) {
+            if (!cargosData || Object.keys(cargosData).length === 0) {
+                container.innerHTML = `<div style="font-size: 13px; color: #666;">Dados ainda não disponibilizados para este local.</div>`;
+                return;
+            }
+
+            let html = '';
+            
+            const titulosCargos = {
+                'presidente': '🗳️ Presidente',
+                'governador': '🏢 Governador',
+                'senador': '🗳️ Senador',
+                'dep_federal': '💼 Deputado Federal',
+                'dep_estadual': uf.toUpperCase() === 'DF' ? '📜 Deputado Distrital' : '📜 Deputado Estadual'
+            };
+
+            const ordemDesejada = ['presidente', 'governador', 'senador', 'dep_federal', 'dep_estadual'];
+
+            ordemDesejada.forEach(cargoKey => {
+                const cargoData = cargosData[cargoKey];
+                if (!cargoData) return; 
+
+                html += `
+                    <div class="cargo-box">
+                        <div class="cargo-box-title">${titulosCargos[cargoKey] || cargoKey}</div>
+                        
+                        <div style="font-size: 11px; font-weight: 600; color: #28a745; margin-bottom: 12px;">
+                            Urnas Apuradas: ${cargoData.apurado}%
+                            <div class="progress-bar-bg" style="height: 5px; margin-top: 4px;">
+                                <div class="progress-bar-fill fill-apuracao" style="width: ${strToFloatPct(cargoData.apurado)}%;"></div>
+                            </div>
+                        </div>
+                `;
+
+                if (!cargoData.candidatos || cargoData.candidatos.length === 0) {
+                    html += `<div style="font-size: 11px; color: #888;">Sem dados até o momento.</div>`;
+                } else {
+                    cargoData.candidatos.forEach((c, i) => {
+                        const partidoStr = c.partido ? ` (${c.partido})` : '';
+                        const corBarra = getCorBarraCandidato(c.nome);
+                        
+                        html += `
+                            <div style="font-size: 12px; margin-bottom: 10px;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                                    <span><strong>${i+1}º ${c.nome}</strong><small>${partidoStr}</small></span>
+                                    <span><b>${c.percentual}%</b> <small style="color: #666;">(${c.votos})</small></span>
+                                </div>
+                                <div class="progress-bar-bg" style="height: 6px;">
+                                    <div class="progress-bar-fill" style="width: ${strToFloatPct(c.percentual)}%; background-color: ${corBarra};"></div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+
+                html += `</div>`;
+            });
+
+            container.innerHTML = html;
+        }
+
+        function fecharDrawer() {
+            document.getElementById('drawer-cargos').classList.remove('active');
+        }
+
+        function alterarRegiaoFiltro(novaRegiao) {
+            regiaoFiltro = novaRegiao;
+            document.getElementById('select-regiao').value = regiaoFiltro;
+
+            atualizarEstiloEConteudo();
+            atualizarPainelRegioes();
+
+            if (!geoJsonLayer) return;
+
+            if (regiaoFiltro === 'TODAS') {
+                map.setView([-14.2350, -51.9253], 4);
+            } else {
+                const ufs = REGIOES[regiaoFiltro] || [];
+                let bounds = L.latLngBounds();
+
+                geoJsonLayer.eachLayer(layer => {
+                    if (ufs.includes(layer.feature.properties.sigla)) {
+                        bounds.extend(layer.getBounds());
+                    }
+                });
+
+                if (bounds.isValid()) {
+                    map.fitBounds(bounds, { padding: [30, 30], maxZoom: 6 });
+                }
+            }
+            setTimeout(() => { map.invalidateSize(); }, 200);
+        }
+
+        function alterarModoCor(novoModo) {
+            modoCor = novoModo;
+            document.getElementById('btn-cor-lider').classList.toggle('active', modoCor === 'lideranca');
+            document.getElementById('btn-cor-apuracao').classList.toggle('active', modoCor === 'apuracao');
+            atualizarEstiloEConteudo();
+            atualizarLegenda();
+        }
+
+        function alterarModoTamanho(novoModo) {
+            modoTamanho = novoModo;
+            document.getElementById('btn-tam-geo').classList.toggle('active', modoTamanho === 'geografico');
+            document.getElementById('btn-tam-pop').classList.toggle('active', modoTamanho === 'populacao');
+            renderizarCamadaGeoJSON();
+        }
+
+        function calcularAreaPlanar(feature) {
+            let totalArea = 0;
+            function areaPolygon(coordinates) {
+                let area = 0;
+                for (let i = 0; i < coordinates.length; i++) {
+                    let ring = coordinates[i];
+                    let ringArea = 0;
+                    for (let j = 0; j < ring.length - 1; j++) {
+                        ringArea += (ring[j][0] * ring[j+1][1]) - (ring[j+1][0] * ring[j][1]);
+                    }
+                    ringArea = Math.abs(ringArea) / 2;
+                    if (i === 0) area += ringArea; else area -= ringArea;
+                }
+                return area;
+            }
+            if (feature.geometry.type === 'Polygon') totalArea = areaPolygon(feature.geometry.coordinates);
+            else if (feature.geometry.type === 'MultiPolygon') feature.geometry.coordinates.forEach(p => totalArea += areaPolygon(p));
+            return totalArea;
+        }
+
+        function obterCentroide(feature) {
+            let pts = [];
+            function extrair(coords) { if (typeof coords[0] === 'number') pts.push(coords); else coords.forEach(extrair); }
+            extrair(feature.geometry.coordinates);
+            let sumX = 0, sumY = 0;
+            pts.forEach(p => { sumX += p[0]; sumY += p[1]; });
+            return [sumX / pts.length, sumY / pts.length];
+        }
+
+        function escalarEAfastarGeometria(geometry, factor, centroid, dispersion) {
+            const vecX = centroid[0] - centroBrasil[0];
+            const vecY = centroid[1] - centroBrasil[1];
+            const novoCentroid = [ centroBrasil[0] + vecX * dispersion, centroBrasil[1] + vecY * dispersion ];
+
+            function escalarCoords(coords) {
+                if (typeof coords[0] === 'number') {
+                    return [ novoCentroid[0] + (coords[0] - centroid[0]) * factor, novoCentroid[1] + (coords[1] - centroid[1]) * factor ];
+                }
+                return coords.map(escalarCoords);
+            }
+            return { type: geometry.type, coordinates: escalarCoords(geometry.coordinates) };
+        }
+
+        function renderizarCamadaGeoJSON() {
+            if (!rawGeoJsonData) return;
+            if (geoJsonLayer) map.removeLayer(geoJsonLayer);
+
+            let geoDataParaUsar = JSON.parse(JSON.stringify(rawGeoJsonData));
+
+            if (modoTamanho === 'populacao') {
+                let totalGeoArea = 0, totalEleitorado = 0;
+
+                geoDataParaUsar.features.forEach(f => {
+                    const sigla = f.properties.sigla;
+                    f.properties.areaGeo = calcularAreaPlanar(f);
+                    f.properties.eleit = eleitoradoUF[sigla] || 3.0;
+                    totalGeoArea += f.properties.areaGeo;
+                    totalEleitorado += f.properties.eleit;
+                });
+
+                geoDataParaUsar.features.forEach(feature => {
+                    const shareEleitorado = feature.properties.eleit / totalEleitorado;
+                    const shareAreaGeo = feature.properties.areaGeo / totalGeoArea;
+                    const factor = Math.sqrt(shareEleitorado / shareAreaGeo);
+                    const centroid = obterCentroide(feature);
+                    feature.geometry = escalarEAfastarGeometria(feature.geometry, factor, centroid, 2.1);
+                });
+            }
+
+            geoJsonLayer = L.geoJSON(geoDataParaUsar, {
+                style: { color: "#ffffff", weight: 1.5, fillOpacity: 0.88, fillColor: "#cccccc" },
+                onEachFeature: function (feature, layer) {
+                    const sigla = feature.properties.sigla;
+                    const nome = feature.properties.name;
+
+                    layer.bindTooltip(gerarConteudoTooltip(nome, sigla));
+                    
+                    layer.on({
+                        click: () => carregarDetalhesEstado(sigla, nome),
+                        mouseover: (e) => {
+                            const ufsRegiao = (regiaoFiltro === 'TODAS') ? null : (REGIOES[regiaoFiltro] || []);
+                            const pertenceAoFiltro = !ufsRegiao || ufsRegiao.includes(sigla);
+                            if (pertenceAoFiltro) {
+                                layer.setStyle({ fillOpacity: 1, weight: 2.5 });
+                            }
+                        },
+                        mouseout: (e) => {
+                            const ufsRegiao = (regiaoFiltro === 'TODAS') ? null : (REGIOES[regiaoFiltro] || []);
+                            const pertenceAoFiltro = !ufsRegiao || ufsRegiao.includes(sigla);
+                            if (pertenceAoFiltro) {
+                                layer.setStyle({ fillOpacity: 0.88, weight: 1.5 });
+                            }
+                        }
+                    });
+                }
+            }).addTo(map);
+
+            atualizarEstiloEConteudo();
+        }
+
+        function atualizarPainelRegioes() {
+            const container = document.getElementById('regioes-list');
+            if (!container) return;
+
+            let html = '';
+
+            for (const [nomeRegiao, UFs] of Object.entries(REGIOES)) {
+                let votosCandidatos = {}, totalVotosRegiao = 0, somaApuradoPonderado = 0, somaEleitoradoRegiao = 0;
+
+                UFs.forEach(uf => {
+                    const est = dadosVotacao[uf];
+                    const eleitUF = eleitoradoUF[uf] || 1;
+                    somaEleitoradoRegiao += eleitUF;
+
+                    if (est) {
+                        somaApuradoPonderado += (strToFloatPct(est.apurado) * eleitUF);
+                        if (est.candidatos) {
+                            est.candidatos.forEach(c => {
+                                const vInt = parseInt((c.votos || '0').replace(/\./g, '')) || 0;
+                                votosCandidatos[c.nome] = (votosCandidatos[c.nome] || 0) + vInt;
+                                totalVotosRegiao += vInt;
+                            });
+                        }
+                    }
+                });
+
+                const pctApuradoRegiaoNum = somaEleitoradoRegiao > 0 ? (somaApuradoPonderado / somaEleitoradoRegiao) : 0;
+                let listaCands = Object.keys(votosCandidatos).map(nome => ({
+                    nome: nome, votos: votosCandidatos[nome],
+                    pct: totalVotosRegiao > 0 ? ((votosCandidatos[nome] / totalVotosRegiao) * 100).toFixed(2) : "0.00"
+                })).sort((a, b) => b.votos - a.votos);
+
+                const isActive = (regiaoFiltro === nomeRegiao) ? 'active-region' : '';
+
+                html += `<div class="regiao-card ${isActive}" onclick="alterarRegiaoFiltro('${nomeRegiao}')">`;
+                
+                html += `
+                    <div class="regiao-header">
+                        <span>${nomeRegiao}</span>
+                        <small style="font-weight:400; color:#666;">${totalVotosRegiao.toLocaleString('pt-BR')} votos (pessoas)</small>
+                    </div>
+                    <div class="regiao-apuracao-box" style="margin-bottom: 12px;">
+                        Urnas Apuradas: ${pctApuradoRegiaoNum.toFixed(2).replace('.', ',')}%
+                        <div class="progress-bar-bg" style="height: 5px; margin-top: 4px;">
+                            <div class="progress-bar-fill fill-apuracao" style="width: ${pctApuradoRegiaoNum}%;"></div>
+                        </div>
+                    </div>
+                `;
+
+                if (listaCands.length === 0) {
+                    html += `<div style="font-size:11px; color:#888;">Aguardando dados...</div>`;
+                } else {
+                    listaCands.slice(0, 2).forEach((c, idx) => {
+                        const corBarra = getCorBarraCandidato(c.nome);
+                        html += `
+                            <div class="cand-row" style="margin-bottom: 10px;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                                    <span><strong>${idx + 1}º ${c.nome}</strong></span>
+                                    <span><b>${c.pct.replace('.', ',')}%</b> <small style="color: #666;">(${c.votos.toLocaleString('pt-BR')})</small></span>
+                                </div>
+                                <div class="progress-bar-bg" style="height: 6px;">
+                                    <div class="progress-bar-fill" style="width: ${c.pct.replace(',', '.')}%; background-color: ${corBarra};"></div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+
+                html += `</div>`;
+            }
+
+            container.innerHTML = html;
+        }
+
+        async function buscarDadosServidor() {
+            try {
+                const res = await fetch('/api/votacao');
+                const data = await res.json();
+                
+                if (data.ultima_atualizacao) {
+                    dadosVotacao = data.estados;
+                    
+                    segundosParaAtualizar = 60;
+                    document.getElementById('status-text').innerHTML = `Última atualização do servidor: <b>${data.ultima_atualizacao}</b> <span style="color: #0056b3; margin-left: 5px;">(Próxima leitura em <span id="contador-tempo">60</span>s)</span>`;
+                    
+                    if (data.brasil) {
+                        
+                        document.getElementById('br-apurado').innerHTML = `${data.brasil.apurado || "0,00"}% <span style="font-size: 13px; font-weight: 500; color: #666;">das urnas</span>`;
+                        document.getElementById('br-bar-apurado').style.width = `${strToFloatPct(data.brasil.apurado)}%`;
+                        
+                        let totalVotosPessoasBrasil = 0;
+                        const cands = data.brasil.candidatos || [];
+                        cands.forEach(c => {
+                            totalVotosPessoasBrasil += parseInt((c.votos || '0').replace(/\./g, '')) || 0;
+                        });
+                        document.getElementById('br-votos-totais').innerText = `${totalVotosPessoasBrasil.toLocaleString('pt-BR')} votos apurados (pessoas)`;
+
+                        if (cands.length > 0) {
+                            document.getElementById('br-lider-nome').innerText = cands[0].nome;
+                            document.getElementById('br-lider-votos').innerText = `${cands[0].percentual}% (${cands[0].votos} votos)`;
+                            document.getElementById('br-bar-lider').style.width = `${strToFloatPct(cands[0].percentual)}%`;
+                            document.getElementById('br-bar-lider').style.backgroundColor = getCorBarraCandidato(cands[0].nome);
+                        }
+                        if (cands.length > 1) {
+                            document.getElementById('br-segundo-nome').innerText = cands[1].nome;
+                            document.getElementById('br-segundo-votos').innerText = `${cands[1].percentual}% (${cands[1].votos} votos)`;
+                            document.getElementById('br-bar-segundo').style.width = `${strToFloatPct(cands[1].percentual)}%`;
+                            document.getElementById('br-bar-segundo').style.backgroundColor = getCorBarraCandidato(cands[1].nome);
+                        }
+                    }
+
+                    atualizarEstiloEConteudo();
+                    atualizarPainelRegioes();
+                }
+            } catch (err) {}
+        }
+
+        function atualizarEstiloEConteudo() {
+            if (!geoJsonLayer) return;
+
+            const ufsRegiao = (regiaoFiltro === 'TODAS') ? null : (REGIOES[regiaoFiltro] || []);
+
+            geoJsonLayer.eachLayer(layer => {
+                const sigla = layer.feature.properties.sigla;
+                const nome = layer.feature.properties.name;
+                const estado = dadosVotacao[sigla];
+                const pertenceAoFiltro = !ufsRegiao || ufsRegiao.includes(sigla);
+                let cor = "#cccccc";
+
+                if (estado) {
+                    if (modoCor === 'apuracao') {
+                        cor = getCorApuracao(strToFloatPct(estado.apurado));
+                    } else if (estado.candidatos && estado.candidatos.length > 0) {
+                        cor = getCorLider(estado.candidatos[0].nome, strToFloatPct(estado.candidatos[0].percentual));
+                    }
+                }
+
+                layer.setStyle({
+                    fillColor: cor,
+                    fillOpacity: pertenceAoFiltro ? 0.88 : 0.1,
+                    color: pertenceAoFiltro ? "#ffffff" : "#d0d0d0",
+                    weight: pertenceAoFiltro ? 1.5 : 0.5
+                });
+
+                layer.setTooltipContent(gerarConteudoTooltip(nome, sigla));
+            });
+        }
+
+        function gerarConteudoTooltip(nomeEstado, siglaUF) {
+            const estado = dadosVotacao[siglaUF];
+            const eleit = eleitoradoUF[siglaUF] ? `${eleitoradoUF[siglaUF]}M eleitores` : '';
+            if (!estado || !estado.candidatos) return `<b>${nomeEstado} (${siglaUF})</b> - ${eleit}<br>Clique para ver outros cargos.`;
+
+            let html = `<b>${nomeEstado} (${siglaUF})</b> - <small>${eleit}</small><br>`;
+            html += `Urnas Apuradas: <b>${estado.apurado}%</b>`;
+            html += `<div class="progress-bar-bg"><div class="progress-bar-fill fill-apuracao" style="width: ${strToFloatPct(estado.apurado)}%;"></div></div>`;
+            html += `<hr style="margin:6px 0;">`;
+
+            estado.candidatos.slice(0, 2).forEach((c, index) => {
+                html += `${index + 1}º ${c.nome}: <b>${c.percentual}%</b> (${c.votos} votos)<br>`;
+            });
+            html += `<small style="color: #0056b3; font-weight: bold;">👉 Clique no estado para ver Governadores, Senadores e Deputados</small>`;
+
+            return html;
+        }
+
+        function atualizarLegenda() {
+            if (legendControl) map.removeControl(legendControl);
+
+            legendControl = L.control({ position: 'bottomright' });
+            legendControl.onAdd = function () {
+                const div = L.DomUtil.create('div', 'legend');
+                if (modoCor === 'apuracao') {
+                    div.innerHTML = `<div class="legend-title">Urnas Apuradas</div><i style="background: #15803d"></i> > 80%<br><i style="background: #4ade80"></i> 60-80%<br><i style="background: #fee2e2"></i> < 20%`;
+                } else {
+                    div.innerHTML = `<div class="legend-title">Liderança</div><i style="background: #800000"></i> Lula<br><i style="background: #0056b3"></i> Bolsonaro`;
+                }
+                return div;
+            };
+            legendControl.addTo(map);
+        }
+
+        window.addEventListener('resize', () => { if (map) map.invalidateSize(); });
+
+        aplicarEstadoSidebar();
+
+        fetch('https://raw.githubusercontent.com/codeforamerica/click_that_hood/master/public/data/brazil-states.geojson')
+            .then(res => res.json())
+            .then(geoJsonData => {
+                rawGeoJsonData = geoJsonData;
+                renderizarCamadaGeoJSON();
+                atualizarLegenda();
+                buscarDadosServidor();
+                setInterval(buscarDadosServidor, 60000); 
+            });
+    </script>
+</body>
+</html>
