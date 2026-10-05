@@ -5,6 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 import requests
+import os
 
 app = Flask(__name__)
 CORS(app)
@@ -233,4 +234,6 @@ def obter_detalhes_municipio(uf, cd_mun):
     return jsonify(resultado_detalhado)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5001)
+    # A nuvem injeta a porta automaticamente na variável de ambiente PORT
+    porta = int(os.environ.get("PORT", 5001))
+    app.run(host='0.0.0.0', port=porta)
