@@ -1,0 +1,1 @@
+web: gunicorn servidor_eleicoes2026:app
