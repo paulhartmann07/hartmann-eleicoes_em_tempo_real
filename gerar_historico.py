@@ -98,11 +98,13 @@ def salvar(caminho, dados):
 
 
 def ler_csv_zip(zf, nome):
-    """Lê um CSV do TSE (latin-1, separado por ';') e devolve (cabeçalho, iterador de linhas)."""
-    bruto = zf.open(nome)
-    texto = io.TextIOWrapper(bruto, encoding='latin-1', newline='')
-    leitor = csv.reader(texto, delimiter=';', quotechar='"')
-    cab = [c.strip().upper() for c in next(leitor)]
+    """Lê um CSV do TSE (latin-1, normalmente separado por ';') e devolve (cabeçalho, iterador de linhas)."""
+    with zf.open(nome) as f:
+        primeira = f.readline().decode('latin-1')
+    sep = ';' if primeira.count(';') >= primeira.count(',') else ','
+    texto = io.TextIOWrapper(zf.open(nome), encoding='latin-1', newline='')
+    leitor = csv.reader(texto, delimiter=sep, quotechar='"')
+    cab = [c.strip().strip('\ufeff').upper() for c in next(leitor)]
     return cab, leitor
 
 
@@ -113,13 +115,19 @@ def carregar_mapa_tse_ibge():
         caminho = baixar(URL_TSE_IBGE, os.path.join(DIR_CACHE, 'municipio_tse_ibge.zip'))
         mapa = {}
         with zipfile.ZipFile(caminho) as zf:
-            nome = next(n for n in zf.namelist() if n.lower().endswith('.csv'))
-            cab, linhas = ler_csv_zip(zf, nome)
-            col_tse = next(i for i, c in enumerate(cab) if 'TSE' in c and c.startswith('CD'))
-            col_ibge = next(i for i, c in enumerate(cab) if 'IBGE' in c and c.startswith('CD'))
-            for l in linhas:
-                if len(l) > max(col_tse, col_ibge):
-                    mapa[l[col_tse].strip().zfill(5)] = l[col_ibge].strip()
+            csvs = [n for n in zf.namelist() if n.lower().endswith('.csv')]
+            print(f"  arquivos no zip TSE→IBGE: {len(csvs)}")
+            for nome in csvs:  # o zip pode vir dividido em vários CSVs: lê todos
+                cab, linhas = ler_csv_zip(zf, nome)
+                cols_mun = [i for i, c in enumerate(cab) if c.startswith('CD') and 'MUN' in c]
+                col_tse = next((i for i in cols_mun if 'TSE' in cab[i]), None)
+                col_ibge = next((i for i in cols_mun if 'IBGE' in cab[i]), None)
+                if col_tse is None or col_ibge is None:
+                    print(f"  [aviso] {nome}: colunas de código não reconhecidas: {cab}")
+                    continue
+                for l in linhas:
+                    if len(l) > max(col_tse, col_ibge) and l[col_tse].strip() and l[col_ibge].strip():
+                        mapa[l[col_tse].strip().zfill(5)] = l[col_ibge].strip()
         print(f"  mapeamento TSE→IBGE: {len(mapa)} municípios")
         return mapa
     except Exception as e:
@@ -151,6 +159,9 @@ def processar_ano(ano):
     zip_path = baixar(URL_VOTACAO.format(ano=ano), os.path.join(DIR_CACHE, f'votacao_candidato_munzona_{ano}.zip'))
     tse_ibge = carregar_mapa_tse_ibge()
     nomes_geo = carregar_nomes_geometria()
+    if not nomes_geo:
+        print("  [ATENÇÃO] static/municipios/ não encontrado. Rode este script DENTRO da pasta do projeto,\n"
+              "            senão os municípios sem código no arquivo do TSE ficam fora do mapa.")
 
     # votos[turno][cargo][uf][mun_tse][sq] = votos      (uf 'ZZ' = exterior; entra só no total Brasil)
     votos = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(int)))))
@@ -326,6 +337,13 @@ def processar_ano(ano):
                 lista.append({'codigo': mun, 'ibge': codigo_ibge(mun, uf, nome), 'nome': nome.upper()})
             lista.sort(key=lambda m: normalizar(m['nome']))
             salvar(os.path.join(base, 'municipios', f'{uf}.json'), lista)
+
+        ufs_mapa = [uf for uf in ESTADOS if os.path.exists(os.path.join(base, 'mapa', f'{uf}.json'))]
+        n_mapa = sum(len(json.load(open(os.path.join(base, 'mapa', f'{uf}.json'), encoding='utf-8'))) for uf in ufs_mapa)
+        n_total = sum(len(dados_mapa.get(uf, {})) for uf in ESTADOS)
+        print(f"  mapa municipal t{turno}: {fmt_int(n_mapa)} de {fmt_int(n_total)} municípios em {len(ufs_mapa)} UFs")
+        if n_total and n_mapa < 0.95 * n_total:
+            print("  [ATENÇÃO] menos de 95% dos municípios entraram no mapa. Me mande esta saída para ajustarmos.")
 
         salvar(os.path.join(base, 'info.json'), {
             'ano': ano, 'turno': turno, 'tipo': tipo,

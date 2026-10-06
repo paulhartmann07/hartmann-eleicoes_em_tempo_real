@@ -1,3 +1,4 @@
+import gzip
 import json
 import os
 import re
@@ -9,7 +10,7 @@ from datetime import date
 from functools import lru_cache
 
 import requests
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, Response, jsonify, request, send_from_directory
 from flask_cors import CORS
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -50,9 +51,11 @@ CARGOS_LIVE = {  # cargo -> (tipo de eleição, código do cargo)
     'dep_federal': ('est', 6), 'dep_estadual': ('est', 7), 'dep_distrital': ('est', 8),
 }
 INTERVALO_AO_VIVO = 60          # segundos entre leituras durante a apuração
-INTERVALO_FINALIZADA = 600      # depois de 100% apurado
-TTL_MAPA_AO_VIVO = 90           # cache do mapa municipal ao vivo
-WORKERS_MUNICIPIOS = 16         # requisições paralelas ao TSE (limite do TSE: 300/s por IP)
+INTERVALO_FINALIZADA = 1800     # depois de 100% apurado (o ideal é congelar com congelar_ao_vivo.py)
+TTL_MAPA_AO_VIVO = 180          # cache do mapa municipal ao vivo
+TTL_DETALHES_AO_VIVO = 60       # cache do painel de cargos ao vivo
+MAX_AGE_HISTORICO = 3600        # navegador guarda dados históricos por 1h
+WORKERS_MUNICIPIOS = 8          # requisições paralelas ao TSE (plano gratuito do Render tem 0,1 CPU)
 
 
 # ===================== UTILITÁRIOS =====================
@@ -69,15 +72,78 @@ def caminho_estatico(ano, turno, *partes):
     return os.path.join(DIR_DADOS, str(ano), f't{turno}', *partes)
 
 
-@lru_cache(maxsize=12)  # arquivos de detalhes chegam a ~1-2 MB; 12 em memória cabem no plano gratuito do Render
-def ler_json_estatico(caminho):
+def estatico(ano, turno, *partes, padrao=None):
+    caminho = caminho_estatico(ano, turno, *partes)
+    if not os.path.exists(caminho):
+        return padrao
     with open(caminho, encoding='utf-8') as f:
         return json.load(f)
 
 
-def estatico(ano, turno, *partes, padrao=None):
+# ===================== RESPOSTAS PRONTAS EM MEMÓRIA =====================
+# Cada resposta é montada UMA vez e guardada já comprimida (gzip). Depois disso, atender uma
+# requisição é só enviar bytes: quase zero de CPU, que é o recurso mais escasso no plano gratuito.
+_respostas = {}                 # chave -> (momento, bytes gzip)
+_detalhes_prontos = {}          # (ano, turno, uf) -> {'estado': gz, 'municipios': {cd: gz}}
+_lock_respostas = threading.Lock()
+
+
+def comprimir(obj):
+    return gzip.compress(json.dumps(obj, ensure_ascii=False, separators=(',', ':')).encode('utf-8'), compresslevel=6)
+
+
+def responder(gz, max_age=0, status=200):
+    if 'gzip' in request.headers.get('Accept-Encoding', ''):
+        resp = Response(gz, status=status, mimetype='application/json')
+        resp.headers['Content-Encoding'] = 'gzip'
+    else:
+        resp = Response(gzip.decompress(gz), status=status, mimetype='application/json')
+    resp.headers['Vary'] = 'Accept-Encoding'
+    resp.headers['Cache-Control'] = f'public, max-age={max_age}' if max_age else 'no-cache'
+    return resp
+
+
+def resposta_em_cache(chave, gerar, ttl=None):
+    """Devolve os bytes comprimidos de `gerar()`, calculando só na primeira vez (ou quando o ttl vence)."""
+    item = _respostas.get(chave)
+    if item and (ttl is None or time.time() - item[0] < ttl):
+        return item[1]
+    gz = comprimir(gerar())
+    with _lock_respostas:
+        _respostas[chave] = (time.time(), gz)
+    return gz
+
+
+def resposta_arquivo(chave, ano, turno, *partes, padrao):
+    """Arquivo estático comprimido direto dos bytes do disco, sem converter para objetos Python."""
+    item = _respostas.get(chave)
+    if item:
+        return item[1]
     caminho = caminho_estatico(ano, turno, *partes)
-    return ler_json_estatico(caminho) if os.path.exists(caminho) else padrao
+    if os.path.exists(caminho):
+        with open(caminho, 'rb') as f:
+            gz = gzip.compress(f.read(), compresslevel=6)
+    else:
+        gz = comprimir(padrao)
+    with _lock_respostas:
+        _respostas[chave] = (time.time(), gz)
+    return gz
+
+
+def detalhes_historicos(ano, turno, uf):
+    """Lê o arquivo de detalhes da UF uma única vez e guarda a resposta de cada município já pronta."""
+    chave = (ano, turno, uf)
+    if chave not in _detalhes_prontos:
+        with _lock_respostas:
+            if chave not in _detalhes_prontos:
+                det = estatico(ano, turno, 'detalhes', f'{uf}.json', padrao={})
+                _detalhes_prontos[chave] = {
+                    'estado': comprimir({'uf': uf, 'cargos': det.get('estado', {}).get('cargos', {})}),
+                    'municipios': {cd: comprimir({'uf': uf, 'municipio_codigo': cd, 'cargos': m.get('cargos', {})})
+                                   for cd, m in det.get('municipios', {}).items()}
+                }
+                del det  # libera os objetos Python; ficam só os bytes comprimidos
+    return _detalhes_prontos[chave]
 
 
 def turno_ja_comecou(ano, turno):
@@ -236,7 +302,8 @@ def cache_ao_vivo(ano, turno):
 
 
 def atualizar_ao_vivo(ano, turno):
-    dados = cache_ao_vivo(ano, turno)
+    anterior = cache_ao_vivo(ano, turno)
+    dados = {'ultima_atualizacao': None, 'brasil': anterior['brasil'], 'estados': dict(anterior['estados'])}
     hora = time.strftime("%H:%M:%S")
     locais = ['br'] + [uf.lower() for uf in ESTADOS]
     with ThreadPoolExecutor(max_workers=8) as ex:
@@ -252,6 +319,10 @@ def atualizar_ao_vivo(ano, turno):
             except Exception as e:
                 log(f"[ERRO EXECUTOR] {loc}: {e}")
     dados['ultima_atualizacao'] = hora
+    with _lock_cache:
+        caches_ao_vivo[(ano, turno)] = dados
+    with _lock_respostas:
+        _respostas.pop(('votacao', ano, turno), None)   # a próxima requisição comprime a versão nova
     try:
         with open(arquivo_cache(ano, turno), 'w', encoding='utf-8') as f:
             json.dump(dados, f, ensure_ascii=False)
@@ -346,7 +417,7 @@ def mapa_ao_vivo(ano, turno, uf):
     with lock:  # duas pessoas clicando em MG ao mesmo tempo disparam só uma rodada de consultas
         em_cache = cache_mapas.get(chave)
         if em_cache and time.time() - em_cache[0] < TTL_MAPA_AO_VIVO:
-            return em_cache[1]
+            return em_cache[1]  # bytes já comprimidos
         muns = municipios_ao_vivo(ano, turno, uf)
         resultado = {}
 
@@ -357,8 +428,9 @@ def mapa_ao_vivo(ano, turno, uf):
             for m, res in ex.map(um, muns):
                 if m.get('ibge'):
                     resultado[m['ibge']] = {'tse': m['codigo'], 'nome': m['nome'], **res}
-        cache_mapas[chave] = (time.time(), resultado)
-        return resultado
+        gz = comprimir(resultado)
+        cache_mapas[chave] = (time.time(), gz)
+        return gz
 
 
 def detalhes_ao_vivo(ano, turno, uf, cd_mun=None):
@@ -404,13 +476,16 @@ def api_votacao():
     f = fonte(ano, turno)
     base = {'ano': ano, 'turno': turno, 'tipo': ELEICOES.get(ano, {}).get('tipo', 'geral'), 'fonte': f}
     if f == 'historico':
-        return jsonify({**base, 'ultima_atualizacao': 'Resultado final',
-                        'brasil': estatico(ano, turno, 'brasil.json', padrao=vazio()),
-                        'estados': estatico(ano, turno, 'estados.json', padrao={})})
+        def gerar():
+            info = estatico(ano, turno, 'info.json', padrao={})
+            return {**base, 'ultima_atualizacao': 'Resultado final',
+                    'fonte_descricao': info.get('fonte_curta', 'Portal de Dados Abertos do TSE'),
+                    'brasil': estatico(ano, turno, 'brasil.json', padrao=vazio()),
+                    'estados': estatico(ano, turno, 'estados.json', padrao={})}
+        return responder(resposta_em_cache(('votacao', ano, turno), gerar), MAX_AGE_HISTORICO)
     if f == 'ao_vivo':
-        dados = cache_ao_vivo(ano, turno)
-        return jsonify({**base, **dados})
-    return jsonify({**base, 'ultima_atualizacao': None, 'brasil': vazio(), 'estados': {}}), 404
+        return responder(resposta_em_cache(('votacao', ano, turno), lambda: {**base, **cache_ao_vivo(ano, turno)}))
+    return responder(comprimir({**base, 'ultima_atualizacao': None, 'brasil': vazio(), 'estados': {}}), status=404)
 
 
 @app.route('/api/municipios/<uf>')
@@ -419,10 +494,11 @@ def api_municipios(uf):
     uf = uf.upper()
     f = fonte(ano, turno)
     if f == 'historico':
-        return jsonify(estatico(ano, turno, 'municipios', f'{uf}.json', padrao=[]))
+        return responder(resposta_arquivo(('mun', ano, turno, uf), ano, turno, 'municipios', f'{uf}.json', padrao=[]),
+                         MAX_AGE_HISTORICO)
     if f == 'ao_vivo':
-        return jsonify(municipios_ao_vivo(ano, turno, uf))
-    return jsonify([])
+        return responder(resposta_em_cache(('mun', ano, turno, uf), lambda: municipios_ao_vivo(ano, turno, uf), ttl=3600))
+    return responder(comprimir([]))
 
 
 @app.route('/api/mapa/<uf>')
@@ -431,10 +507,11 @@ def api_mapa(uf):
     uf = uf.upper()
     f = fonte(ano, turno)
     if f == 'historico':
-        return jsonify(estatico(ano, turno, 'mapa', f'{uf}.json', padrao={}))
+        return responder(resposta_arquivo(('mapa', ano, turno, uf), ano, turno, 'mapa', f'{uf}.json', padrao={}),
+                         MAX_AGE_HISTORICO)
     if f == 'ao_vivo' and uf in ESTADOS:
-        return jsonify(mapa_ao_vivo(ano, turno, uf))
-    return jsonify({})
+        return responder(mapa_ao_vivo(ano, turno, uf))
+    return responder(comprimir({}))
 
 
 @app.route('/api/detalhes/<uf>')
@@ -443,11 +520,11 @@ def api_detalhes_estado(uf):
     uf = uf.upper()
     f = fonte(ano, turno)
     if f == 'historico':
-        det = estatico(ano, turno, 'detalhes', f'{uf}.json', padrao={})
-        return jsonify({'uf': uf, 'cargos': det.get('estado', {}).get('cargos', {})})
+        return responder(detalhes_historicos(ano, turno, uf)['estado'], MAX_AGE_HISTORICO)
     if f == 'ao_vivo':
-        return jsonify({'uf': uf, **detalhes_ao_vivo(ano, turno, uf)})
-    return jsonify({'uf': uf, 'cargos': {}})
+        return responder(resposta_em_cache(('det', ano, turno, uf, None),
+                                           lambda: {'uf': uf, **detalhes_ao_vivo(ano, turno, uf)}, ttl=TTL_DETALHES_AO_VIVO))
+    return responder(comprimir({'uf': uf, 'cargos': {}}))
 
 
 @app.route('/api/detalhes/<uf>/<cd_mun>')
@@ -455,13 +532,15 @@ def api_detalhes_municipio(uf, cd_mun):
     ano, turno = ler_params()
     uf, cd_mun = uf.upper(), str(cd_mun).zfill(5)
     f = fonte(ano, turno)
+    vazio_mun = {'uf': uf, 'municipio_codigo': cd_mun, 'cargos': {}}
     if f == 'historico':
-        det = estatico(ano, turno, 'detalhes', f'{uf}.json', padrao={})
-        mun = det.get('municipios', {}).get(cd_mun, {})
-        return jsonify({'uf': uf, 'municipio_codigo': cd_mun, 'cargos': mun.get('cargos', {})})
+        gz = detalhes_historicos(ano, turno, uf)['municipios'].get(cd_mun)
+        return responder(gz or comprimir(vazio_mun), MAX_AGE_HISTORICO)
     if f == 'ao_vivo':
-        return jsonify({'uf': uf, 'municipio_codigo': cd_mun, **detalhes_ao_vivo(ano, turno, uf, cd_mun)})
-    return jsonify({'uf': uf, 'municipio_codigo': cd_mun, 'cargos': {}})
+        return responder(resposta_em_cache(('det', ano, turno, uf, cd_mun),
+                                           lambda: {**vazio_mun, **detalhes_ao_vivo(ano, turno, uf, cd_mun)},
+                                           ttl=TTL_DETALHES_AO_VIVO))
+    return responder(comprimir(vazio_mun))
 
 
 if __name__ == '__main__':

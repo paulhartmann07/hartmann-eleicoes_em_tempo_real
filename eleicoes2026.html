@@ -337,6 +337,7 @@
         const cacheGeo = {};
         let dadosVotacao = {};
         let ultimaAtualizacao = null;
+        let fonteDescricao = null;
         let buscando = false;
         let segundos = INTERVALO_SEG;
 
@@ -1087,7 +1088,7 @@
         // ===================== DADOS DO SERVIDOR =====================
         function renderizarStatus(comErro) {
             if (!eleicao.ao_vivo) {
-                $('status-text').innerHTML = `<b>Resultado final</b> <span class="status-prox">(fonte: Portal de Dados Abertos do TSE)</span>`;
+                $('status-text').innerHTML = `<b>Resultado final</b> <span class="status-prox">(fonte: ${esc(fonteDescricao || 'Portal de Dados Abertos do TSE')})</span>`;
                 return;
             }
             const proxima = `<span id="contador-tempo">${segundos}</span>s`;
@@ -1137,6 +1138,7 @@
                 if (id !== reqVotacao) return;   // usuário trocou de eleição no meio da leitura
                 dadosVotacao = data.estados || {};
                 ultimaAtualizacao = data.ultima_atualizacao;
+                fonteDescricao = data.fonte_descricao || null;
                 renderizarStatus(false);
                 if (data.brasil) atualizarCardsBrasil(data.brasil);
                 atualizarEstilo();
