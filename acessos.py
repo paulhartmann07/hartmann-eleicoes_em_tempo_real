@@ -151,6 +151,9 @@ class Contador:
         self.modo_alto_ate = 0
         self.ultimo_ponto = 0
         self.respostas = {}         # periodo -> JSON pronto, sem o "agora" (refeito a cada minuto)
+        self.ultimo_tique = 0       # diagnóstico: quando o ciclo rodou pela última vez
+        self.ultimo_erro = None
+        self.proxima_tentativa_relatorio = 0
         self.sal, self.total_unicos, self.serie, self.ultimo_relatorio = None, 0, [], None
         try:
             self.sal, self.total_unicos, self.serie, self.ultimo_relatorio = self.arm.carregar()
@@ -210,6 +213,7 @@ class Contador:
                 ponto['u'] = self.total_unicos
                 self.arm.salvar([], ponto)
         except Exception as e:
+            self.ultimo_erro = f"{time.strftime('%d/%m %H:%M')}: salvar: {e}"
             log(f"ERRO ao salvar ({e}); tento de novo no próximo minuto")
             with self.lock:
                 self.pendentes |= novos
@@ -219,6 +223,7 @@ class Contador:
             self.ultimo_ponto = ponto['t']
             self.pico_intervalo = 0
         self.respostas = {}
+        self.ultimo_tique = time.time()
 
     # ---------- dados públicos ----------
     def resumo(self, periodo):
@@ -391,25 +396,58 @@ def ip_do_cliente(request):
     return request.remote_addr or 'desconhecido'
 
 
+_ciclo = {'pid': None, 'geracao': 0, 'thread': None}
+_lock_ciclo = threading.Lock()
+
+
+def _laco(contador, geracao):
+    while _ciclo['geracao'] == geracao and _ciclo['pid'] == os.getpid():
+        time.sleep(60)
+        if _ciclo['geracao'] != geracao:
+            return  # um ciclo mais novo assumiu
+        try:
+            contador.tique()
+            pronto = relatorio_pendente(contador) and os.environ.get('RESEND_API_KEY')
+            if pronto and time.time() >= contador.proxima_tentativa_relatorio:
+                contador.proxima_tentativa_relatorio = time.time() + 3600   # se falhar, tenta de novo em 1h
+                if enviar_relatorio(contador):
+                    hoje = datetime.fromtimestamp(time.time(), BRT).strftime('%Y-%m-%d')
+                    contador.ultimo_relatorio = hoje
+                    contador.arm.marcar_relatorio(hoje)
+        except Exception as e:
+            contador.ultimo_erro = f"{time.strftime('%d/%m %H:%M')}: {e}"
+            log(f"ERRO no ciclo de acessos: {e}")
+
+
+def garantir_ciclo(contador):
+    """Chamado a cada requisição. Liga o ciclo se ele não estiver rodando NESTE processo
+    (com gunicorn --preload a thread criada na importação não existe no processo que atende)
+    ou se ele travou por mais de 5 minutos."""
+    pid, t = os.getpid(), _ciclo['thread']
+    travado = contador.ultimo_tique and time.time() - contador.ultimo_tique > 300
+    if _ciclo['pid'] == pid and t is not None and t.is_alive() and not travado:
+        return
+    with _lock_ciclo:
+        t = _ciclo['thread']
+        travado = contador.ultimo_tique and time.time() - contador.ultimo_tique > 300
+        if _ciclo['pid'] == pid and t is not None and t.is_alive() and not travado:
+            return
+        motivo = 'travado' if travado else 'processo novo' if _ciclo['pid'] not in (None, pid) else 'início'
+        _ciclo.update(pid=pid, geracao=_ciclo['geracao'] + 1)
+        if travado:
+            contador.ultimo_tique = time.time()   # dá 5 min para o ciclo novo provar que está vivo
+        _ciclo['thread'] = threading.Thread(target=_laco, args=(contador, _ciclo['geracao']), daemon=True)
+        _ciclo['thread'].start()
+        log(f"ciclo de acessos ligado (pid {pid}, motivo: {motivo})")
+
+
 def iniciar(app, responder, comprimir):
     from flask import Response, jsonify, request
 
     contador = Contador(criar_armazenamento())
-
-    def laco():
-        while True:
-            time.sleep(60)
-            try:
-                contador.tique()
-                if relatorio_pendente(contador) and os.environ.get('RESEND_API_KEY'):
-                    if enviar_relatorio(contador):
-                        hoje = datetime.now(BRT).strftime('%Y-%m-%d')
-                        contador.ultimo_relatorio = hoje
-                        contador.arm.marcar_relatorio(hoje)
-            except Exception as e:
-                log(f"ERRO no ciclo de acessos: {e}")
-
-    threading.Thread(target=laco, daemon=True).start()
+    # O ciclo liga na primeira requisição (e não aqui), para nunca rodar no processo "pai" do gunicorn,
+    # que não atende ninguém e gravaria pontos vazios.
+    app.before_request(lambda: garantir_ciclo(contador))
 
     @app.route('/api/presenca', methods=['POST'])
     def api_presenca():
