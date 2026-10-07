@@ -346,17 +346,42 @@ def eleicoes_ao_vivo_ativas():
             if fonte(ano, t) == 'ao_vivo' and not cache_ao_vivo(ano, t).get('finalizado')]
 
 
+_laco_tse = {'pid': None, 'thread': None, 'volta': 0}
+_lock_laco_tse = threading.Lock()
+
+
 def laco_ao_vivo():
     proxima = {}
-    while True:
+    while _laco_tse['pid'] == os.getpid():
+        _laco_tse['volta'] = time.time()
         for ano, turno in eleicoes_ao_vivo_ativas():
             if time.time() >= proxima.get((ano, turno), 0):
-                atualizar_ao_vivo(ano, turno)
+                try:
+                    atualizar_ao_vivo(ano, turno)
+                except Exception as e:
+                    log(f"[ERRO ciclo TSE] {e}")
                 proxima[(ano, turno)] = time.time() + INTERVALO_AO_VIVO
         time.sleep(5)
 
 
-threading.Thread(target=laco_ao_vivo, daemon=True).start()
+def garantir_laco_ao_vivo():
+    """Liga o ciclo do TSE neste processo se ele não estiver rodando. Necessário porque, com
+    gunicorn --preload, a thread criada na importação não existe no processo que atende o site."""
+    t = _laco_tse['thread']
+    if _laco_tse['pid'] == os.getpid() and t is not None and t.is_alive():
+        return
+    with _lock_laco_tse:
+        t = _laco_tse['thread']
+        if _laco_tse['pid'] == os.getpid() and t is not None and t.is_alive():
+            return
+        _laco_tse['pid'] = os.getpid()
+        _laco_tse['thread'] = threading.Thread(target=laco_ao_vivo, daemon=True)
+        _laco_tse['thread'].start()
+        log(f"ciclo do TSE ligado (pid {os.getpid()})")
+
+
+# Liga na primeira requisição de cada processo (o cron-job garante uma a cada 10 min)
+app.before_request(garantir_laco_ao_vivo)
 
 
 # --- Municípios ao vivo (config do TSE, com código IBGE no campo 'cdi') ---
@@ -536,7 +561,26 @@ def api_detalhes_municipio(uf, cd_mun):
 # ===================== CONTADOR DE ACESSOS =====================
 import acessos  # noqa: E402  (precisa de responder/comprimir definidos acima)
 
-acessos.iniciar(app, responder, comprimir)
+contador_acessos = acessos.iniciar(app, responder, comprimir)
+
+
+@app.route('/api/saude')
+def api_saude():
+    """Resposta mínima para o cron-job.org (manter o site acordado) e para diagnóstico."""
+    c = contador_acessos
+    agora = time.time()
+    resp = jsonify({
+        'ok': True,
+        'pid': os.getpid(),
+        'acessos': {
+            'ultimo_ciclo_ha_seg': int(agora - c.ultimo_tique) if c.ultimo_tique else None,
+            'agora': len(c.ativos), 'unicos': c.total_unicos, 'pontos': len(c.serie),
+            'armazenamento': c.arm.descricao, 'ultimo_erro': c.ultimo_erro,
+        },
+        'tse': {'ultima_volta_ha_seg': int(agora - _laco_tse['volta']) if _laco_tse['volta'] else None},
+    })
+    resp.headers['Cache-Control'] = 'no-store'
+    return resp
 
 
 if __name__ == '__main__':
