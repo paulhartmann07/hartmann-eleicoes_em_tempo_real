@@ -1,5 +1,7 @@
 .cache_tse/
 dados_cache*.json
+dados_acessos.json*
+relatorio_acessos.html
 venv/
 __pycache__/
 .DS_Store

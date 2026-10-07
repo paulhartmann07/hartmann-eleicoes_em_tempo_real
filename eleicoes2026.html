@@ -133,6 +133,25 @@
         .mapa-status { font-size: 11px; color: var(--cinza); max-width: 220px; text-align: right; }
         .mapa-status:empty { display: none; }
 
+        /* Abas do site */
+        .abas-site { display: flex; gap: 4px; margin-bottom: 15px; border-bottom: 2px solid var(--borda); overflow-x: auto; }
+        .aba-site { display: flex; align-items: center; gap: 6px; padding: 9px 14px; margin-bottom: -2px; font-size: 14px; font-weight: 700; color: var(--cinza); text-decoration: none; border-bottom: 3px solid transparent; white-space: nowrap; }
+        .aba-site:hover { color: var(--texto); }
+        .aba-site.ativa { color: var(--azul); border-bottom-color: var(--azul); }
+        .badge-agora { font-size: 11px; font-weight: 700; color: #fff; background: var(--verde); border-radius: 10px; padding: 2px 7px; }
+        .badge-agora:empty { display: none; }
+
+        /* Aba de acessos */
+        .card.pico { border-left-color: #f59e0b; }
+        .grafico-card { background: #fff; border-radius: 10px; box-shadow: var(--sombra); padding: 14px 16px; margin-bottom: 15px; }
+        .grafico-titulo { font-size: 13px; font-weight: 700; text-transform: uppercase; color: var(--azul); }
+        .grafico-sub { font-size: 12px; color: var(--cinza); margin-bottom: 8px; }
+        .grafico { position: relative; width: 100%; height: 260px; }
+        .grafico svg { display: block; width: 100%; height: 100%; touch-action: pan-y; }
+        .grafico-vazio { display: flex; align-items: center; justify-content: center; height: 100%; font-size: 13px; color: var(--cinza); text-align: center; }
+        .grafico-dica { position: absolute; pointer-events: none; transform: translate(-50%, calc(-100% - 10px)); background: rgba(28,30,33,0.92); color: #fff; font-size: 12px; padding: 6px 9px; border-radius: 6px; white-space: nowrap; }
+        .nota-privacidade { font-size: 12px; color: var(--cinza); line-height: 1.6; background: #fff; border-radius: 10px; padding: 12px 16px; box-shadow: var(--sombra); }
+
         /* Dispositivos móveis */
         @media (max-width: 900px) {
             body { padding: 8px; }
@@ -143,6 +162,7 @@
             .card-sub-sm { font-size: 10px; }
             .controls-bar { flex-direction: column; align-items: stretch; gap: 8px; }
             .eleicao-bar { padding: 10px 12px; }
+            .grafico { height: 220px; }
             .search-inputs-wrapper { flex-direction: column; align-items: stretch; }
             .search-select, .search-btn { width: 100%; }
             .main-layout { display: block; }
@@ -160,6 +180,12 @@
         </div>
     </div>
 
+    <nav class="abas-site" role="tablist" aria-label="Seções do site">
+        <a href="#apuracao" id="aba-apuracao" class="aba-site ativa" role="tab" aria-selected="true">🗳️ Apuração</a>
+        <a href="#acessos" id="aba-acessos" class="aba-site" role="tab" aria-selected="false">👥 Acessos ao site <span id="aba-acessos-agora" class="badge-agora" title="pessoas acessando agora"></span></a>
+    </nav>
+
+    <div id="secao-apuracao">
     <div class="eleicao-bar">
         <label for="select-ano" class="eleicao-label">Eleição</label>
         <select id="select-ano" class="select-regiao-btn" onchange="selecionarEleicao(Number(this.value), eleicao.turno)">
@@ -262,6 +288,49 @@
             <div class="msg">Selecione um estado no mapa ou pesquise uma cidade acima para ver a apuração completa.</div>
         </div>
     </div>
+    </div>
+
+    <section id="secao-acessos" hidden>
+        <div class="header-dashboard">
+            <div class="card apuracao">
+                <div class="card-title">Acessando agora</div>
+                <div class="card-value" id="ac-agora">–</div>
+                <div class="card-sub">pessoas com o site aberto neste momento</div>
+            </div>
+            <div class="card">
+                <div class="card-title">Visitantes únicos</div>
+                <div class="card-value" id="ac-unicos">–</div>
+                <div class="card-sub" id="ac-desde">&nbsp;</div>
+            </div>
+            <div class="card pico">
+                <div class="card-title">Maior pico simultâneo</div>
+                <div class="card-value" id="ac-pico">–</div>
+                <div class="card-sub" id="ac-pico-quando">&nbsp;</div>
+            </div>
+        </div>
+        <div class="controls-bar">
+            <div class="status-text" id="ac-status">Carregando...</div>
+            <div class="toggle-group" role="group" aria-label="Período dos gráficos">
+                <button class="btn-toggle active" data-periodo="24h" aria-pressed="true">24 horas</button>
+                <button class="btn-toggle" data-periodo="7d" aria-pressed="false">7 dias</button>
+                <button class="btn-toggle" data-periodo="tudo" aria-pressed="false">Tudo</button>
+            </div>
+        </div>
+        <div class="grafico-card">
+            <div class="grafico-titulo">Pessoas acessando ao mesmo tempo</div>
+            <div class="grafico-sub">Pico em cada intervalo de tempo</div>
+            <div id="graf-simultaneos" class="grafico"></div>
+        </div>
+        <div class="grafico-card">
+            <div class="grafico-titulo">Visitantes únicos acumulados</div>
+            <div class="grafico-sub">Total de pessoas diferentes que já visitaram o site</div>
+            <div id="graf-unicos" class="grafico"></div>
+        </div>
+        <p class="nota-privacidade"><b>Como contamos:</b> enquanto a página está aberta e visível, ela avisa o servidor uma vez por minuto.
+            "Acessando agora" são as conexões diferentes (por IP) que deram sinal nos últimos 2,5 minutos.
+            O IP nunca é guardado nem exibido: ele vira um código anônimo, usado só para saber se a visita é de alguém novo.
+            Por isso, pessoas na mesma rede (mesma casa ou empresa) contam como um visitante só. Robôs que não abrem a página não são contados.</p>
+    </section>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
             integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
@@ -342,7 +411,7 @@
         let segundos = INTERVALO_SEG;
 
         let catalogo = [];
-        let eleicao = { ano: 2026, turno: 1, tipo: 'geral', ao_vivo: true };
+        let eleicao = { ano: 2026, turno: 1, tipo: 'geral', ao_vivo: true, fonte: 'ao_vivo' };
 
         let ufAtiva = null;                 // { sigla, nome } quando o mapa está mostrando os municípios
         let camadaMunicipios = null;
@@ -372,6 +441,9 @@
         const ehMunicipal = () => eleicao.tipo === 'municipal';
         const unidade = () => ehMunicipal() ? 'municípios' : 'votos';
         const dataBR = iso => iso.split('-').reverse().join('/');
+        // Mapa por município só com resultado publicado em arquivo (anos anteriores ou turno congelado).
+        // Durante a apuração ao vivo ele exigiria centenas de consultas ao TSE por clique.
+        const temMapaMunicipal = () => eleicao.fonte !== 'ao_vivo';
 
         async function getJSON(url) {
             const res = await fetch(url);
@@ -490,8 +562,8 @@
             const t = info.turnos.find(x => x.turno === turno && x.disponivel) || info.turnos.find(x => x.disponivel);
             if (!t) return;
 
-            eleicao = { ano: info.ano, turno: t.turno, tipo: info.tipo, ao_vivo: !!t.ao_vivo };
-            history.replaceState(null, '', `?ano=${eleicao.ano}&turno=${eleicao.turno}`);
+            eleicao = { ano: info.ano, turno: t.turno, tipo: info.tipo, ao_vivo: !!t.ao_vivo, fonte: t.fonte || (t.ao_vivo ? 'ao_vivo' : 'historico') };
+            history.replaceState(null, '', `?ano=${eleicao.ano}&turno=${eleicao.turno}${location.hash}`);
 
             // Zera tudo o que pertence à eleição anterior (mas mantém o estado aberto, se houver)
             const estadoAberto = ufAtiva;
@@ -542,8 +614,10 @@
                 ? `Eleições Municipais ${eleicao.ano} – Prefeituras (${turno})`
                 : eleicao.ao_vivo ? `Apuração Presidencial em Tempo Real – ${turno}`
                 : `Resultado Presidencial ${eleicao.ano} – ${turno}`;
-            $('titulo-pagina').textContent = titulo;
-            document.title = titulo;
+            if (abaAtual() === 'apuracao') {
+                $('titulo-pagina').textContent = titulo;
+                document.title = titulo;
+            }
             POSICOES.forEach((pos, i) => { $(`br-${pos}-titulo`).textContent = ehMunicipal() ? `${i + 1}º Partido` : `${i + 1}º Lugar Geral`; });
             $('sidebar-titulo').textContent = ehMunicipal() ? 'Municípios liderados por Região' : 'Resultado por Região';
             // No 2º turno das eleições gerais só existem dois candidatos: esconde os cards de 3º a 5º
@@ -829,7 +903,7 @@
             const cor = corDoResultado(dadosVotacao[sigla]);
             if (ufAtiva) {
                 return sigla === ufAtiva.sigla
-                    ? { fillColor: cor, fillOpacity: 0, color: '#1c1e21', weight: 2 }
+                    ? { fillColor: cor, fillOpacity: camadaMunicipios ? 0 : 0.88, color: '#1c1e21', weight: camadaMunicipios ? 2 : 2.5 }
                     : { fillColor: cor, fillOpacity: 0.1, color: '#d0d0d0', weight: 0.5 };
             }
             const ativo = pertenceAoFiltro(sigla);
@@ -900,9 +974,19 @@
             geoJsonLayer.eachLayer(l => {
                 if (l.feature.properties.sigla === sigla) map.fitBounds(l.getBounds(), { padding: [20, 20] });
             });
-            atualizarEstilo();
             carregarDetalhesEstado(sigla, nome);
-            if (trocouDeEstado) await carregarMapaEstado(false);
+            if (!temMapaMunicipal()) {
+                if (camadaMunicipios) { map.removeLayer(camadaMunicipios); camadaMunicipios = null; }
+                dadosMapaUF = {};
+                atualizarEstilo();
+                atualizarLegenda();
+                setMapaStatus(eleicao.ao_vivo
+                    ? 'Mapa por município disponível ao fim da apuração. Para ver uma cidade agora, use a busca acima.'
+                    : 'Apuração encerrada. O mapa por município será publicado em breve; use a busca acima.');
+                return;
+            }
+            atualizarEstilo();
+            if (trocouDeEstado || !camadaMunicipios) await carregarMapaEstado(false);
         }
 
         async function carregarMapaEstado(silencioso) {
@@ -910,14 +994,13 @@
             const id = ++reqMapa;
             const { sigla } = ufAtiva;
             if (!silencioso) {
-                setMapaStatus(eleicao.ao_vivo
-                    ? `Carregando os municípios de ${sigla} no TSE… (pode levar alguns segundos)`
-                    : `Carregando os municípios de ${sigla}…`);
+                setMapaStatus(`Carregando os municípios de ${sigla}…`);
             }
             try {
                 const [geo, dados] = await Promise.all([geoMunicipios(sigla), getJSON(`/api/mapa/${sigla}${qs()}`)]);
                 if (id !== reqMapa || !ufAtiva || ufAtiva.sigla !== sigla) return;
                 dadosMapaUF = dados || {};
+                atualizarEstilo();
 
                 if (!camadaMunicipios || camadaMunicipios._uf !== sigla) {
                     if (camadaMunicipios) map.removeLayer(camadaMunicipios);
@@ -990,7 +1073,7 @@
         legenda.onAdd = () => L.DomUtil.create('div', 'legend');
 
         function coletarLideres() {
-            const resultados = ufAtiva ? Object.values(dadosMapaUF) : Object.values(dadosVotacao);
+            const resultados = ufAtiva && camadaMunicipios ? Object.values(dadosMapaUF) : Object.values(dadosVotacao);
             const porCor = new Map();
             resultados.forEach(res => {
                 const c = res?.candidatos?.[0];
@@ -1145,7 +1228,7 @@
                 atualizarTooltips();
                 atualizarPainelRegioes();
                 atualizarLegenda();
-                if (ufAtiva && eleicao.ao_vivo) carregarMapaEstado(true);
+                if (data.finalizado && eleicao.ao_vivo) encerrarAoVivo();
             } catch (err) {
                 console.error('Falha ao buscar /api/votacao:', err);
                 if (id === reqVotacao) renderizarStatus(true);
@@ -1155,6 +1238,176 @@
             }
         }
 
+        // O servidor avisou que a apuração chegou a 100%: para o relógio e mostra como resultado final
+        function encerrarAoVivo() {
+            eleicao.ao_vivo = false;
+            const info = catalogo.find(e => e.ano === eleicao.ano);
+            const t = info?.turnos.find(x => x.turno === eleicao.turno);
+            if (t) t.ao_vivo = false;
+            if (info) atualizarAbas(info);
+            atualizarTitulos();
+            renderizarStatus(false);
+            if (ufAtiva) setMapaStatus('Apuração encerrada. O mapa por município será publicado em breve; use a busca acima.');
+        }
+
+        // ===================== ABAS DO SITE =====================
+        const abaAtual = () => location.hash === '#acessos' ? 'acessos' : 'apuracao';
+
+        function mostrarAba() {
+            const aba = abaAtual();
+            $('secao-apuracao').hidden = aba !== 'apuracao';
+            $('secao-acessos').hidden = aba !== 'acessos';
+            ['apuracao', 'acessos'].forEach(a => {
+                $(`aba-${a}`).classList.toggle('ativa', a === aba);
+                $(`aba-${a}`).setAttribute('aria-selected', a === aba);
+            });
+            if (aba === 'apuracao') {
+                atualizarTitulos();
+                setTimeout(() => map.invalidateSize(), 50); // o mapa estava escondido
+            } else {
+                $('titulo-pagina').textContent = 'Acessos ao site em tempo real';
+                document.title = 'Acessos ao site – Eleições em tempo real';
+                carregarAcessos();
+            }
+        }
+        window.addEventListener('hashchange', mostrarAba);
+
+        // ===================== PRESENÇA E ACESSOS =====================
+        let periodoAcessos = '24h';
+        let dadosAcessos = null;
+        let reqAcessos = 0;
+        const fmtInt = n => Number(n || 0).toLocaleString('pt-BR');
+        const dataHora = t => new Date(t * 1000).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+        const horaMin = t => new Date(t * 1000).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+        function atualizarBadgeAgora(n) { $('aba-acessos-agora').textContent = n > 0 ? `● ${fmtInt(n)}` : ''; }
+
+        // Só conta quem está com a aba visível; avisa a cada minuto e ao voltar para a aba
+        async function enviarPresenca() {
+            if (document.visibilityState !== 'visible') return;
+            try {
+                const r = await fetch('/api/presenca', { method: 'POST', keepalive: true });
+                if (r.ok) atualizarBadgeAgora((await r.json()).agora);
+            } catch { /* sem rede: tenta no próximo minuto */ }
+        }
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState !== 'visible') return;
+            enviarPresenca();
+            if (abaAtual() === 'acessos') carregarAcessos();
+        });
+
+        async function carregarAcessos() {
+            const id = ++reqAcessos;
+            try {
+                const d = await getJSON(`/api/acessos?periodo=${periodoAcessos}`);
+                if (id !== reqAcessos) return;
+                dadosAcessos = d;
+                renderizarAcessos();
+            } catch {
+                if (id === reqAcessos) $('ac-status').textContent = 'Não foi possível carregar os acessos agora. Tentando de novo em instantes.';
+            }
+        }
+
+        function renderizarAcessos() {
+            const d = dadosAcessos;
+            if (!d || $('secao-acessos').hidden) return;
+            $('ac-agora').textContent = fmtInt(d.agora);
+            $('ac-unicos').textContent = fmtInt(d.unicos);
+            $('ac-desde').textContent = d.desde ? `desde ${dataHora(d.desde)}` : 'contagem começando agora';
+            const pico = d.pico && d.pico.s >= d.agora ? d.pico : { s: d.agora, t: d.atualizado_em };
+            $('ac-pico').textContent = fmtInt(pico.s);
+            $('ac-pico-quando').textContent = pico.s ? `em ${dataHora(pico.t)}` : '\u00a0';
+            atualizarBadgeAgora(d.agora);
+            const coleta = d.modo === 'minuto'
+                ? `minuto a minuto, movimento alto: ${d.limiar_alto}+ pessoas`
+                : 'a cada 10 minutos, movimento normal';
+            $('ac-status').innerHTML = `Atualizado às <b>${horaMin(d.atualizado_em)}</b> <span class="status-prox">(coleta ${coleta})</span>`;
+            desenharGrafico($('graf-simultaneos'), d.serie.map(p => [p[0], p[1]]), '#28a745', 'acessando ao mesmo tempo', true);
+            desenharGrafico($('graf-unicos'), d.serie.map(p => [p[0], p[2]]), '#0056b3', 'visitantes únicos', false);
+        }
+
+        document.querySelectorAll('[data-periodo]').forEach(btn => btn.addEventListener('click', () => {
+            periodoAcessos = btn.dataset.periodo;
+            document.querySelectorAll('[data-periodo]').forEach(b => {
+                b.classList.toggle('active', b === btn);
+                b.setAttribute('aria-pressed', b === btn);
+            });
+            carregarAcessos();
+        }));
+
+        function escalaBonita(max) {
+            const p = Math.pow(10, Math.floor(Math.log10(max)));
+            return [1, 2, 2.5, 5, 10].map(f => f * p).find(v => v >= max);
+        }
+        const fmtCurto = v => (v >= 1e6 ? `${+(v / 1e6).toFixed(2)}M` : v >= 1e4 ? `${+(v / 1e3).toFixed(1)}k` : `${+v.toFixed(1)}`).replace('.', ',');
+
+        // Gráfico de linha em SVG puro (sem biblioteca), com dica ao passar o mouse/dedo
+        function desenharGrafico(el, pontos, cor, rotulo, doZero) {
+            if (!pontos.length) {
+                el.innerHTML = '<div class="grafico-vazio">Coletando os primeiros dados.<br>O gráfico aparece em alguns minutos.</div>';
+                return;
+            }
+            const W = el.clientWidth || 600, H = el.clientHeight || 260;
+            const m = { e: 46, d: 14, t: 12, b: 26 };
+            const t0 = pontos[0][0], t1 = pontos[pontos.length - 1][0], span = Math.max(1, t1 - t0);
+            // Eixo Y com valores "redondos". O acumulado começa perto do menor valor, senão a curva parece reta.
+            const valores = pontos.map(p => p[1]);
+            const lo = doZero ? 0 : Math.min(...valores), hi = Math.max(...valores);
+            const passo = escalaBonita(Math.max(hi - lo, 4) / 4);
+            const vmin = doZero ? 0 : Math.floor(lo / passo) * passo;
+            const vmax = Math.max(vmin + passo, Math.ceil(hi / passo) * passo);
+            const x = t => m.e + (W - m.e - m.d) * (pontos.length === 1 ? 0.5 : (t - t0) / span);
+            const y = v => m.t + (H - m.t - m.b) * (1 - (v - vmin) / (vmax - vmin));
+            const rotuloTempo = t => span <= 2 * 86400
+                ? horaMin(t)
+                : new Date(t * 1000).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+
+            let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Gráfico: ${rotulo}">`;
+            for (let v = vmin; v <= vmax + passo / 2; v += passo) {
+                const yy = y(v).toFixed(1);
+                svg += `<line x1="${m.e}" x2="${W - m.d}" y1="${yy}" y2="${yy}" stroke="#e4e6eb"/>`
+                     + `<text x="${m.e - 6}" y="${+yy + 4}" text-anchor="end" font-size="11" fill="#65676b">${fmtCurto(v)}</text>`;
+            }
+            const ticks = pontos.length === 1 ? [t0] : [0, 1, 2, 3, 4].map(k => t0 + span * k / 4);
+            ticks.forEach((t, k) => {
+                const ancora = ticks.length === 1 ? 'middle' : k === 0 ? 'start' : k === ticks.length - 1 ? 'end' : 'middle';
+                svg += `<text x="${x(t).toFixed(1)}" y="${H - 6}" text-anchor="${ancora}" font-size="11" fill="#65676b">${rotuloTempo(t)}</text>`;
+            });
+            const linha = pontos.map((p, i) => `${i ? 'L' : 'M'}${x(p[0]).toFixed(1)},${y(p[1]).toFixed(1)}`).join('');
+            svg += `<path d="${linha}L${x(t1).toFixed(1)},${y(vmin)}L${x(t0).toFixed(1)},${y(vmin)}Z" fill="${cor}" fill-opacity="0.12"/>`
+                 + `<path d="${linha}" fill="none" stroke="${cor}" stroke-width="2" stroke-linejoin="round"/>`
+                 + `<line class="g-cursor" y1="${m.t}" y2="${H - m.b}" stroke="#1c1e21" stroke-dasharray="3,3" visibility="hidden"/>`
+                 + `<circle class="g-ponto" r="4" fill="${cor}" stroke="#fff" stroke-width="2" visibility="hidden"/></svg>`
+                 + `<div class="grafico-dica" hidden></div>`;
+            el.innerHTML = svg;
+
+            const svgEl = el.querySelector('svg'), cursor = el.querySelector('.g-cursor'),
+                  ponto = el.querySelector('.g-ponto'), dica = el.querySelector('.grafico-dica');
+            const mostrar = ev => {
+                const r = svgEl.getBoundingClientRect();
+                const cx = ((ev.touches ? ev.touches[0].clientX : ev.clientX) - r.left) * W / r.width;
+                const alvo = t0 + (cx - m.e) / (W - m.e - m.d) * span;
+                let melhor = pontos[0];
+                for (const p of pontos) if (Math.abs(p[0] - alvo) < Math.abs(melhor[0] - alvo)) melhor = p;
+                const px = x(melhor[0]), py = y(melhor[1]);
+                cursor.setAttribute('x1', px); cursor.setAttribute('x2', px); cursor.setAttribute('visibility', 'visible');
+                ponto.setAttribute('cx', px); ponto.setAttribute('cy', py); ponto.setAttribute('visibility', 'visible');
+                dica.hidden = false;
+                dica.style.left = `${Math.min(Math.max(px * r.width / W, 70), r.width - 70)}px`;
+                dica.style.top = `${py * r.height / H}px`;
+                dica.innerHTML = `<b>${fmtInt(melhor[1])}</b> ${rotulo}<br>${dataHora(melhor[0])}`;
+            };
+            const esconder = () => { cursor.setAttribute('visibility', 'hidden'); ponto.setAttribute('visibility', 'hidden'); dica.hidden = true; };
+            svgEl.addEventListener('mousemove', mostrar);
+            svgEl.addEventListener('touchstart', mostrar, { passive: true });
+            svgEl.addEventListener('touchmove', mostrar, { passive: true });
+            svgEl.addEventListener('mouseleave', esconder);
+            svgEl.addEventListener('touchend', esconder);
+        }
+
+        let redesenho;
+        window.addEventListener('resize', () => { clearTimeout(redesenho); redesenho = setTimeout(renderizarAcessos, 150); });
+
         // ===================== INICIALIZAÇÃO =====================
         popularSelects();
         aplicarEstadoSidebar();
@@ -1162,6 +1415,10 @@
         atualizarLegenda();
         carregarMapa();
         carregarCatalogo();
+        mostrarAba();
+        enviarPresenca();
+        setInterval(enviarPresenca, 60000);
+        setInterval(() => { if (abaAtual() === 'acessos' && document.visibilityState === 'visible') carregarAcessos(); }, 30000);
 
         // Um único relógio controla o contador e a próxima leitura (só em eleições ao vivo)
         setInterval(() => {

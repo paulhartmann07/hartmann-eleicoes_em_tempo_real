@@ -5,8 +5,8 @@ import re
 import threading
 import time
 import unicodedata
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import date
+from concurrent.futures import ThreadPoolExecutor
+from datetime import date, timedelta
 from functools import lru_cache
 
 import requests
@@ -50,12 +50,10 @@ CARGOS_LIVE = {  # cargo -> (tipo de eleição, código do cargo)
     'presidente': ('fed', 1), 'governador': ('est', 3), 'senador': ('est', 5),
     'dep_federal': ('est', 6), 'dep_estadual': ('est', 7), 'dep_distrital': ('est', 8),
 }
-INTERVALO_AO_VIVO = 60          # segundos entre leituras durante a apuração
-INTERVALO_FINALIZADA = 1800     # depois de 100% apurado (o ideal é congelar com congelar_ao_vivo.py)
-TTL_MAPA_AO_VIVO = 180          # cache do mapa municipal ao vivo
-TTL_DETALHES_AO_VIVO = 60       # cache do painel de cargos ao vivo
+INTERVALO_AO_VIVO = int(os.environ.get("INTERVALO_AO_VIVO", 60))  # segundos entre leituras durante a apuração
+TTL_DETALHES_AO_VIVO = 60       # cache do painel de cargos ao vivo (depois do encerramento: permanente)
+DIAS_LIMITE_AO_VIVO = 3         # rede de segurança: para de consultar 3 dias após a eleição, mesmo sem 100%
 MAX_AGE_HISTORICO = 3600        # navegador guarda dados históricos por 1h
-WORKERS_MUNICIPIOS = 8          # requisições paralelas ao TSE (plano gratuito do Render tem 0,1 CPU)
 
 
 # ===================== UTILITÁRIOS =====================
@@ -262,14 +260,16 @@ def processar_json_tse(data, limit=5):
     return pst, todos[:limit]
 
 
-def resultado_tse(ano, turno, abrangencia, cargo_nome, limit=5):
+def resultado_tse(ano, turno, abrangencia, cargo_nome, limit=5, padrao=vazio):
+    """Resultado de um cargo numa abrangência. Em falha devolve padrao() (ou None se padrao=None)."""
+    falhou = (lambda: padrao()) if padrao else (lambda: None)
     tipo, cargo_cd = CARGOS_LIVE[cargo_nome]
     codigo = codigos_ao_vivo(ano, turno).get(tipo)
     if not codigo:
-        return vazio()
+        return falhou()
     data = buscar_tse(url_tse(ano, codigo, abrangencia, cargo_cd), chave_quarentena=f"{ano}-{turno}-{abrangencia}-{cargo_cd}")
     if not data:
-        return vazio()
+        return falhou()
     pst, cands = processar_json_tse(data, limit)
     return {'apurado': pst, 'candidatos': cands}
 
@@ -301,24 +301,29 @@ def cache_ao_vivo(ano, turno):
         return caches_ao_vivo[(ano, turno)]
 
 
+def apuracao_encerrada(ano, turno, dados):
+    if dados['brasil'].get('apurado') == '100,00' and all(
+            dados['estados'].get(uf, {}).get('apurado') == '100,00' for uf in ESTADOS):
+        return True
+    limite = date.fromisoformat(ELEICOES[ano]['turnos'][turno]) + timedelta(days=DIAS_LIMITE_AO_VIVO)
+    return date.today() >= limite
+
+
 def atualizar_ao_vivo(ano, turno):
     anterior = cache_ao_vivo(ano, turno)
-    dados = {'ultima_atualizacao': None, 'brasil': anterior['brasil'], 'estados': dict(anterior['estados'])}
-    hora = time.strftime("%H:%M:%S")
+    dados = {'ultima_atualizacao': None, 'finalizado': False,
+             'brasil': anterior['brasil'], 'estados': dict(anterior['estados'])}
     locais = ['br'] + [uf.lower() for uf in ESTADOS]
-    with ThreadPoolExecutor(max_workers=8) as ex:
-        futuros = {ex.submit(resultado_tse, ano, turno, loc, 'presidente', 5): loc for loc in locais}
-        for fut in as_completed(futuros):
-            loc = futuros[fut]
-            try:
-                res = fut.result()
-                if loc == 'br':
-                    dados['brasil'] = res
-                else:
-                    dados['estados'][loc.upper()] = res
-            except Exception as e:
-                log(f"[ERRO EXECUTOR] {loc}: {e}")
-    dados['ultima_atualizacao'] = hora
+    with ThreadPoolExecutor(max_workers=4) as ex:
+        for loc, res in zip(locais, ex.map(lambda l: resultado_tse(ano, turno, l, 'presidente', 5, padrao=None), locais)):
+            if res is None:
+                continue  # TSE falhou nesta leitura: mantém o último valor bom em vez de voltar para 0%
+            if loc == 'br':
+                dados['brasil'] = res
+            else:
+                dados['estados'][loc.upper()] = res
+    dados['ultima_atualizacao'] = time.strftime("%H:%M:%S")
+    dados['finalizado'] = apuracao_encerrada(ano, turno, dados)
     with _lock_cache:
         caches_ao_vivo[(ano, turno)] = dados
     with _lock_respostas:
@@ -328,23 +333,26 @@ def atualizar_ao_vivo(ano, turno):
             json.dump(dados, f, ensure_ascii=False)
     except Exception:
         pass
+    if dados['finalizado']:
+        log(f"Apuração {ano} {turno}º turno ENCERRADA ({dados['brasil'].get('apurado')}% no Brasil). "
+            f"Consultas ao TSE suspensas. Rode congelar_ao_vivo.py {ano} {turno} para publicar o mapa municipal.")
     return dados
 
 
 def eleicoes_ao_vivo_ativas():
+    """Turnos ao vivo que ainda precisam ser consultados (os encerrados ficam de fora)."""
     return [(ano, t) for ano, cfg in ELEICOES.items() if cfg.get('ao_vivo')
-            for t in cfg['turnos'] if fonte(ano, t) == 'ao_vivo']
+            for t in cfg['turnos']
+            if fonte(ano, t) == 'ao_vivo' and not cache_ao_vivo(ano, t).get('finalizado')]
 
 
 def laco_ao_vivo():
     proxima = {}
     while True:
         for ano, turno in eleicoes_ao_vivo_ativas():
-            if time.time() < proxima.get((ano, turno), 0):
-                continue
-            dados = atualizar_ao_vivo(ano, turno)
-            finalizada = dados['brasil'].get('apurado') == '100,00'
-            proxima[(ano, turno)] = time.time() + (INTERVALO_FINALIZADA if finalizada else INTERVALO_AO_VIVO)
+            if time.time() >= proxima.get((ano, turno), 0):
+                atualizar_ao_vivo(ano, turno)
+                proxima[(ano, turno)] = time.time() + INTERVALO_AO_VIVO
         time.sleep(5)
 
 
@@ -405,34 +413,6 @@ def municipios_ao_vivo(ano, turno, uf):
     return lista
 
 
-cache_mapas = {}            # (ano, turno, uf) -> (momento, dados)
-_locks_mapas = {}
-_lock_locks = threading.Lock()
-
-
-def mapa_ao_vivo(ano, turno, uf):
-    chave = (ano, turno, uf)
-    with _lock_locks:
-        lock = _locks_mapas.setdefault(chave, threading.Lock())
-    with lock:  # duas pessoas clicando em MG ao mesmo tempo disparam só uma rodada de consultas
-        em_cache = cache_mapas.get(chave)
-        if em_cache and time.time() - em_cache[0] < TTL_MAPA_AO_VIVO:
-            return em_cache[1]  # bytes já comprimidos
-        muns = municipios_ao_vivo(ano, turno, uf)
-        resultado = {}
-
-        def um(m):
-            return m, resultado_tse(ano, turno, f"{uf.lower()}{m['codigo']}", 'presidente', 2)
-
-        with ThreadPoolExecutor(max_workers=WORKERS_MUNICIPIOS) as ex:
-            for m, res in ex.map(um, muns):
-                if m.get('ibge'):
-                    resultado[m['ibge']] = {'tse': m['codigo'], 'nome': m['nome'], **res}
-        gz = comprimir(resultado)
-        cache_mapas[chave] = (time.time(), gz)
-        return gz
-
-
 def detalhes_ao_vivo(ano, turno, uf, cd_mun=None):
     uf_l = uf.lower()
     cargo_dep_est = 'dep_distrital' if uf.upper() == 'DF' else 'dep_estadual'
@@ -449,6 +429,11 @@ def detalhes_ao_vivo(ano, turno, uf, cd_mun=None):
     return {'cargos': res}
 
 
+def ttl_detalhes(ano, turno):
+    """Durante a apuração o painel expira em 60s; depois do encerramento o resultado não muda mais."""
+    return None if cache_ao_vivo(ano, turno).get('finalizado') else TTL_DETALHES_AO_VIVO
+
+
 # ===================== ROTAS =====================
 @app.route('/')
 def index():
@@ -463,7 +448,8 @@ def api_eleicoes():
         turnos = []
         for t, data_eleicao in sorted(cfg['turnos'].items()):
             f = fonte(ano, t)
-            turnos.append({'turno': t, 'data': data_eleicao, 'disponivel': f is not None, 'ao_vivo': f == 'ao_vivo'})
+            ao_vivo = f == 'ao_vivo' and not cache_ao_vivo(ano, t).get('finalizado')
+            turnos.append({'turno': t, 'data': data_eleicao, 'disponivel': f is not None, 'ao_vivo': ao_vivo, 'fonte': f})
             if f and (padrao is None or (ano, t) > (padrao['ano'], padrao['turno'])):
                 padrao = {'ano': ano, 'turno': t}
         lista.append({'ano': ano, 'tipo': cfg['tipo'], 'turnos': turnos})
@@ -484,7 +470,11 @@ def api_votacao():
                     'estados': estatico(ano, turno, 'estados.json', padrao={})}
         return responder(resposta_em_cache(('votacao', ano, turno), gerar), MAX_AGE_HISTORICO)
     if f == 'ao_vivo':
-        return responder(resposta_em_cache(('votacao', ano, turno), lambda: {**base, **cache_ao_vivo(ano, turno)}))
+        def gerar_ao_vivo():
+            dados = cache_ao_vivo(ano, turno)
+            extra = {'fonte_descricao': 'divulgação oficial do TSE'} if dados.get('finalizado') else {}
+            return {**base, **dados, **extra}
+        return responder(resposta_em_cache(('votacao', ano, turno), gerar_ao_vivo))
     return responder(comprimir({**base, 'ultima_atualizacao': None, 'brasil': vazio(), 'estados': {}}), status=404)
 
 
@@ -509,8 +499,8 @@ def api_mapa(uf):
     if f == 'historico':
         return responder(resposta_arquivo(('mapa', ano, turno, uf), ano, turno, 'mapa', f'{uf}.json', padrao={}),
                          MAX_AGE_HISTORICO)
-    if f == 'ao_vivo' and uf in ESTADOS:
-        return responder(mapa_ao_vivo(ano, turno, uf))
+    # Ao vivo NÃO há mapa municipal (seriam centenas de consultas ao TSE por clique).
+    # Ele aparece depois que o turno é congelado com congelar_ao_vivo.py.
     return responder(comprimir({}))
 
 
@@ -523,7 +513,7 @@ def api_detalhes_estado(uf):
         return responder(detalhes_historicos(ano, turno, uf)['estado'], MAX_AGE_HISTORICO)
     if f == 'ao_vivo':
         return responder(resposta_em_cache(('det', ano, turno, uf, None),
-                                           lambda: {'uf': uf, **detalhes_ao_vivo(ano, turno, uf)}, ttl=TTL_DETALHES_AO_VIVO))
+                                           lambda: {'uf': uf, **detalhes_ao_vivo(ano, turno, uf)}, ttl=ttl_detalhes(ano, turno)))
     return responder(comprimir({'uf': uf, 'cargos': {}}))
 
 
@@ -539,8 +529,14 @@ def api_detalhes_municipio(uf, cd_mun):
     if f == 'ao_vivo':
         return responder(resposta_em_cache(('det', ano, turno, uf, cd_mun),
                                            lambda: {**vazio_mun, **detalhes_ao_vivo(ano, turno, uf, cd_mun)},
-                                           ttl=TTL_DETALHES_AO_VIVO))
+                                           ttl=ttl_detalhes(ano, turno)))
     return responder(comprimir(vazio_mun))
+
+
+# ===================== CONTADOR DE ACESSOS =====================
+import acessos  # noqa: E402  (precisa de responder/comprimir definidos acima)
+
+acessos.iniciar(app, responder, comprimir)
 
 
 if __name__ == '__main__':
