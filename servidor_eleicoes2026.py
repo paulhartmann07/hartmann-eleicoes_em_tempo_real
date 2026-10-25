@@ -804,6 +804,10 @@ import anuncios  # noqa: E402
 
 anuncios.iniciar(app)
 
+import publicidade  # noqa: E402
+
+publicidade.iniciar(app, responder, comprimir)
+
 
 @app.route('/api/saude')
 def api_saude():

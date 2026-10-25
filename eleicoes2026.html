@@ -202,6 +202,37 @@
         .idioma button { border: none; background: transparent; font-size: 12px; font-weight: 700; padding: 4px 8px; border-radius: 6px; cursor: pointer; color: #4b4d4e; }
         .idioma button.active { background: #fff; color: var(--forte); box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
 
+        /* Espaços publicitários */
+        .pub { text-align: center; }
+        .pub img { display: block; max-width: 100%; height: auto; margin: 0 auto; border-radius: 8px; }
+        .pub-rotulo { font-size: 10px; color: var(--cinza); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3px; }
+        .pub-topo { margin-bottom: 15px; }
+        .pub-topo img, .pub-rodape img { max-height: 120px; }
+        .pub-convite { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; border: 2px dashed #ced0d4; border-radius: 10px;
+                       padding: 10px 14px; background: #fff; font-size: 13px; color: var(--texto); }
+        .pub-convite button { background: #f59e0b; color: #1c1e21; border: none; font-weight: 800; font-size: 12px; padding: 8px 14px; border-radius: 8px; cursor: pointer; }
+        .pub-convite button:hover { background: #d97706; }
+        .pub-convite.vertical { flex-direction: column; text-align: center; min-height: 600px; box-sizing: border-box; padding: 18px 10px; }
+        .pub-convite.vertical .pc-ico { font-size: 34px; }
+        .pub-lateral { display: none; }
+        @media (min-width: 1500px) {
+            body { padding-left: 196px; padding-right: 196px; }
+            .pub-lateral { display: block; position: fixed; top: 90px; width: 160px; z-index: 5; }
+            .pub-lateral.esq { left: 18px; } .pub-lateral.dir { right: 18px; }
+            .pub-lateral img { max-height: 600px; }
+        }
+        .rodape { margin-top: 25px; padding-top: 15px; border-top: 2px solid var(--borda); }
+        .rodape-txt { font-size: 12px; color: var(--cinza); text-align: center; margin-top: 10px; }
+        .rodape-txt a { color: var(--azul); cursor: pointer; text-decoration: underline; }
+        .abertura { position: relative; background: #fff; border-radius: 14px; padding: 16px; max-width: min(640px, 100%); max-height: 92dvh; overflow: auto; box-sizing: border-box; text-align: center; }
+        .abertura img { display: block; max-width: 100%; max-height: 70dvh; margin: 0 auto; border-radius: 8px; }
+        .abertura .fechar-x { position: absolute; top: 6px; right: 8px; background: rgba(0,0,0,0.06); border: none; border-radius: 50%; width: 32px; height: 32px; font-size: 20px; cursor: pointer; }
+        .abertura h3 { margin: 8px 30px 6px; font-size: 20px; }
+        .abertura p { font-size: 14px; color: var(--cinza); margin: 0 0 16px; line-height: 1.5; }
+        .abertura .botoes { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+        .abertura .botoes button { border: none; border-radius: 8px; padding: 11px 18px; font-weight: 800; font-size: 14px; cursor: pointer; }
+        .abertura .sim { background: #f59e0b; color: #1c1e21; } .abertura .nao { background: var(--borda); color: var(--texto); }
+
         /* Anuncie aqui */
         .banner-anuncio { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; background: #fff;
                           border: 2px dashed #ced0d4; border-radius: 10px; padding: 12px 16px; margin-bottom: 15px; }
@@ -362,7 +393,12 @@
             'Informe um e-mail ou um telefone com DDD.': 'Please enter an e-mail or a phone number with area code.', 'Escolha uma faixa de investimento.': 'Please choose an investment range.',
             'É preciso autorizar o contato.': 'You need to agree to be contacted.', 'Recebemos muitos envios agora. Tente de novo mais tarde.': 'We received too many submissions. Please try again later.',
             'Não foi possível enviar agora. Tente de novo em instantes.': 'Could not send right now. Please try again shortly.', 'Não foi possível enviar agora.': 'Could not send right now.',
-            'Sem conexão. Tente de novo em instantes.': 'No connection. Please try again shortly.'
+            'Sem conexão. Tente de novo em instantes.': 'No connection. Please try again shortly.',
+            'Publicidade': 'Advertisement', 'Anuncie aqui': 'Advertise here', 'Seu banner aqui': 'Your banner here',
+            'para quem acompanha a apuração.': 'for people following the count.', 'Sua marca nesta coluna, ao lado da apuração.': 'Your brand in this column, next to the count.',
+            '📣 Anuncie no Eleições em tempo real': '📣 Advertise on Brazil elections live',
+            'Sua marca na tela de quem acompanha a apuração: no topo, nas laterais, no rodapé ou nesta abertura.': 'Your brand on the screen of people following the count: at the top, on the sides, in the footer or in this opening window.',
+            'Agora não': 'Not now', 'Eleições em tempo real · dados oficiais do TSE ·': 'Brazil elections live · official TSE data ·'
         };
 
         const ordinalEN = n => n + ((n % 100 >= 11 && n % 100 <= 13) ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] || 'th'));
@@ -479,6 +515,8 @@
     </script>
 </head>
 <body>
+    <aside class="pub pub-lateral esq" data-espaco="lateral" aria-label="Publicidade"></aside>
+    <aside class="pub pub-lateral dir" data-espaco="lateral" aria-label="Publicidade"></aside>
 
     <div class="header-top">
         <h2 id="titulo-pagina">Apuração Presidencial em Tempo Real</h2>
@@ -497,6 +535,8 @@
         <a href="#evolucao" id="aba-evolucao" class="aba-site" role="tab" aria-selected="false">📈 Evolução da apuração</a>
         <a href="#acessos" id="aba-acessos" class="aba-site" role="tab" aria-selected="false">👥 Acessos ao site <span id="aba-acessos-agora" class="badge-agora" title="pessoas acessando agora"></span></a>
     </nav>
+
+    <div class="pub pub-topo" data-espaco="topo"></div>
 
     <div id="secao-apuracao">
     <div class="eleicao-bar">
@@ -577,7 +617,6 @@
         </div>
     </div>
 
-    <div class="slot-anuncio"></div>
     <div class="controls-bar">
         <div class="status-text" id="status-text">Aguardando conexão com o servidor...</div>
         <div class="toggle-container">
@@ -627,8 +666,19 @@
         </div>
         <div class="story-cards" id="story-cards"></div>
         <p class="nota-privacidade" id="an-aviso" style="margin-top:15px"></p>
-        <div class="slot-anuncio" style="margin-top:15px"></div>
     </section>
+
+    <footer class="rodape">
+        <div class="pub pub-rodape" data-espaco="rodape"></div>
+        <div class="rodape-txt">Eleições em tempo real · dados oficiais do TSE · <a onclick="abrirAnuncie()">Anuncie aqui</a></div>
+    </footer>
+
+    <div class="modal-fundo" id="modal-abertura" hidden role="dialog" aria-modal="true" aria-label="Publicidade">
+        <div class="abertura">
+            <button class="fechar-x" aria-label="Fechar" onclick="fecharAbertura()">×</button>
+            <div id="abertura-conteudo"></div>
+        </div>
+    </div>
 
     <div class="modal-fundo" id="modal-anuncie" hidden role="dialog" aria-modal="true" aria-labelledby="anuncie-titulo">
         <div class="modal">
@@ -1828,6 +1878,77 @@
         // botão do idioma ativo
         $(`btn-lang-${IDIOMA}`).classList.add('active');
 
+        // ===================== ESPAÇOS PUBLICITÁRIOS =====================
+        // topo, laterais e rodapé: anúncio sorteado entre os ativos; espaço vazio mostra o convite "Anuncie aqui".
+        // abertura (popup): no máximo 1x a cada 12h por navegador; sem anúncio vendido, mostra o convite.
+        let pubEspacos = {};
+        const ABERTURA_INTERVALO = 12 * 3600 * 1000;
+        const embaralhar = l => l.map(x => [Math.random(), x]).sort((a, b) => a[0] - b[0]).map(x => x[1]);
+        const estaNaTela = el => getComputedStyle(el).display !== 'none' && el.getClientRects().length > 0;
+
+        function htmlAnuncio(ad) {
+            return `<div class="pub-rotulo">Publicidade</div>
+                <a href="/pub/clique/${encodeURIComponent(ad.id)}" target="_blank" rel="sponsored noopener">
+                    <img src="/pub/img/${encodeURIComponent(ad.id)}?v=${encodeURIComponent(ad.v)}" alt="${esc(ad.alt)}" loading="lazy"></a>`;
+        }
+        function htmlConvite(espaco) {
+            if (espaco === 'lateral') return `<div class="pub-convite vertical"><span class="pc-ico">📣</span>
+                <b>Anuncie aqui</b><span>Sua marca nesta coluna, ao lado da apuração.</span><button onclick="abrirAnuncie()">Quero anunciar</button></div>`;
+            return `<div class="pub-convite"><span>📣 <b>Seu banner aqui</b> para quem acompanha a apuração.</span>
+                <button onclick="abrirAnuncie()">Quero anunciar</button></div>`;
+        }
+
+        function registrarVistas(ids) {
+            if (!ids.length) return;
+            fetch('/api/pub/vistas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids }), keepalive: true }).catch(() => {});
+        }
+
+        // Visualização conta só quando pelo menos metade do anúncio aparece na tela (padrão do mercado),
+        // uma vez por carregamento de página. Assim o rodapé só conta para quem rolou até ele.
+        const observadorVistas = 'IntersectionObserver' in window ? new IntersectionObserver(entradas => {
+            entradas.forEach(en => {
+                if (en.isIntersecting && en.intersectionRatio >= 0.5 && en.target.dataset.adId) {
+                    registrarVistas([en.target.dataset.adId]);
+                    observadorVistas.unobserve(en.target);
+                }
+            });
+        }, { threshold: 0.5 }) : null;
+
+        async function carregarPublicidade() {
+            try { pubEspacos = (await getJSON('/api/publicidade')).espacos || {}; } catch { pubEspacos = {}; }
+            const fila = {};   // cada lateral recebe um anúncio diferente, quando houver
+            document.querySelectorAll('[data-espaco]').forEach(el => {
+                const espaco = el.dataset.espaco;
+                if (!fila[espaco]) fila[espaco] = embaralhar(pubEspacos[espaco] || []);
+                const ad = espaco === 'lateral' ? fila[espaco].shift() : fila[espaco][0];
+                el.innerHTML = ad ? htmlAnuncio(ad) : htmlConvite(espaco);
+                el.dataset.adId = ad ? ad.id : '';
+                if (ad && observadorVistas) observadorVistas.observe(el);
+                else if (ad && estaNaTela(el)) registrarVistas([ad.id]);   // navegador antigo
+            });
+            agendarAbertura();
+        }
+
+        function agendarAbertura() {
+            try { if (Date.now() - Number(localStorage.getItem('pub_abertura') || 0) < ABERTURA_INTERVALO) return; } catch { /* sem armazenamento */ }
+            setTimeout(() => {
+                if (!$('story-overlay').hidden || !$('modal-anuncie').hidden) return;   // não atrapalha quem já abriu algo
+                const lista = pubEspacos.abertura || [];
+                const ad = lista.length ? embaralhar(lista)[0] : null;
+                $('abertura-conteudo').innerHTML = ad ? htmlAnuncio(ad) : `
+                    <h3>📣 Anuncie no Eleições em tempo real</h3>
+                    <p>Sua marca na tela de quem acompanha a apuração: no topo, nas laterais, no rodapé ou nesta abertura.</p>
+                    <div class="botoes"><button class="sim" onclick="fecharAbertura(); abrirAnuncie()">Quero anunciar</button>
+                        <button class="nao" onclick="fecharAbertura()">Agora não</button></div>`;
+                $('modal-abertura').hidden = false;
+                if (ad) registrarVistas([ad.id]);
+                try { localStorage.setItem('pub_abertura', String(Date.now())); } catch { /* sem armazenamento */ }
+            }, 2000);
+        }
+        function fecharAbertura() { $('modal-abertura').hidden = true; }
+        $('modal-abertura').addEventListener('click', ev => { if (ev.target.id === 'modal-abertura') fecharAbertura(); });
+        document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && !$('modal-abertura').hidden) fecharAbertura(); });
+
         // ===================== ANUNCIE AQUI =====================
         document.querySelectorAll('.slot-anuncio').forEach(slot => {
             slot.innerHTML = `<div class="banner-anuncio">
@@ -2342,6 +2463,7 @@
         atualizarLegenda();
         carregarMapa();
         carregarCatalogo();
+        carregarPublicidade();
         mostrarAba();
         enviarPresenca();
         setInterval(enviarPresenca, 60000);

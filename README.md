@@ -108,6 +108,15 @@ localmente) e gera um e-mail de aviso pelo Resend. Para ver todos os interessado
 A senha é `ANUNCIOS_CHAVE` ou, se ela não existir, a `RELATORIO_CHAVE`.
 Proteções: consentimento obrigatório (LGPD), campo invisível contra robôs e no máximo 3 envios por hora por IP.
 
+## Espaços publicitários
+
+Quatro espaços: **topo** (970×90), **abertura** (popup 600×500, no máximo 1x a cada 12h por pessoa), **laterais**
+(160×600, só em telas a partir de 1500px) e **rodapé** (970×90). Espaço vazio mostra o convite "Anuncie aqui".
+
+Para subir, pausar ou remover anúncios, sem deploy: `/admin/publicidade?chave=SUA_SENHA`.
+Imagens até 600 KB (PNG, JPG, WEBP ou GIF), guardadas no Upstash. Vistas contam quando ao menos metade do
+anúncio aparece na tela; cliques passam por `/pub/clique/<id>`. Os números são gravados a cada minuto.
+
 ## Rodar localmente
 
 ```bash
