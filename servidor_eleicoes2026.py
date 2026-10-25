@@ -662,7 +662,7 @@ def api_detalhes_municipio(uf, cd_mun):
 # COLETOR_COMPLETO=1 inclui zonas e governador por município (pesado para 0,1 CPU: use só em plano pago).
 COLETOR_NO_RENDER = os.environ.get('COLETOR_NO_RENDER') == '1'
 COLETOR_COMPLETO = os.environ.get('COLETOR_COMPLETO') == '1'
-_coletor_interno = {'pid': None, 'thread': None, 'ultimo_ciclo': 0, 'ultimo_erro': None, 'encerrado': False, 'coletando': False}
+_coletor_interno = {'pid': None, 'thread': None, 'ultimo_ciclo': 0, 'ultimo_completo': 0, 'ultimo_erro': None, 'encerrado': False, 'coletando': False}
 _acordar_coletor = threading.Event()   # /api/coletor/atualizar acorda o coletor antes dos 5 min
 COLETA_MANUAL_INTERVALO_MIN = 60       # segundos mínimos entre duas coletas
 _lock_coletor_interno = threading.Lock()
@@ -673,12 +673,28 @@ def _alvos_coleta():
             if fonte(ano, t) == 'ao_vivo' and not dados_ao_vivo(ano, t).get('finalizado')]
 
 
+def _frente_completa_interna(col, banco, ano, turno, cod, muns, gov):
+    """Municípios e cidades do exterior (e zonas, no modo completo), em sequência, no ritmo que o TSE permite."""
+    while _coletor_interno['pid'] == os.getpid() and not _coletor_interno['encerrado']:
+        inicio = time.time()
+        try:
+            col.ciclo(ano, turno, cod, muns, banco, gov, completo=COLETOR_COMPLETO, publicar_resumo=False)
+            _coletor_interno['ultimo_completo'] = time.time()
+            coletor.estados.get((ano, turno), {})['checado'] = 0
+        except (Exception, SystemExit) as e:
+            _coletor_interno['ultimo_erro'] = f"{time.strftime('%d/%m %H:%M')}: completo: {e}"
+            log(f"[COLETOR] erro no ciclo completo: {e}")
+        time.sleep(max(5, col.INTERVALO - (time.time() - inicio)))
+
+
 def _laco_coletor_interno():
+    """Frente rápida (Brasil, UFs e exterior a cada COLETOR_RAPIDO_SEG, padrão 60s) + frente completa em paralelo."""
     os.environ.setdefault('COLETOR_WORKERS', '8')   # no Render, poucas conexões paralelas para poupar CPU
     import coletor_ao_vivo as col
     from acessos import ArmazenamentoUpstash
     banco = ArmazenamentoUpstash(os.environ['UPSTASH_REDIS_REST_URL'], os.environ['UPSTASH_REDIS_REST_TOKEN'])
-    preparado = {}
+    rapido = int(os.environ.get('COLETOR_RAPIDO_SEG', 60))
+    preparado, completas = {}, {}
     while _coletor_interno['pid'] == os.getpid():
         for ano, turno in _alvos_coleta():
             try:
@@ -686,21 +702,27 @@ def _laco_coletor_interno():
                     cod = col.descobrir_codigos(ano, turno)
                     preparado[(ano, turno)] = (cod, col.carregar_municipios(ano, cod), set())
                 cod, muns, gov = preparado[(ano, turno)]
+                t = completas.get((ano, turno))
+                if t is None or not t.is_alive():
+                    completas[(ano, turno)] = threading.Thread(target=_frente_completa_interna,
+                                                               args=(col, banco, ano, turno, cod, muns, gov), daemon=True)
+                    completas[(ano, turno)].start()
                 _coletor_interno['coletando'] = True
                 try:
-                    terminou = col.ciclo(ano, turno, cod, muns, banco, gov, completo=COLETOR_COMPLETO)
+                    terminou = col.ciclo_rapido(ano, turno, cod, banco)
                 finally:
                     _coletor_interno['coletando'] = False
                 coletor.estados.get((ano, turno), {})['checado'] = 0   # o site já lê a foto nova, sem esperar 30s
-                if terminou:
-                    log(f"[COLETOR] {ano} {turno}º turno chegou a 100%: coleta encerrada")
-                    _coletor_interno['encerrado'] = True
-                    return
                 _coletor_interno['ultimo_ciclo'] = time.time()
+                if terminou:
+                    _coletor_interno['encerrado'] = True
+                    log(f"[COLETOR] {ano} {turno}º turno chegou a 100%: última leitura completa e encerramento")
+                    col.ciclo(ano, turno, cod, muns, banco, gov, completo=COLETOR_COMPLETO)
+                    return
             except (Exception, SystemExit) as e:   # carregar_municipios usa sys.exit em falha
                 _coletor_interno['ultimo_erro'] = f"{time.strftime('%d/%m %H:%M')}: {e}"
-                log(f"[COLETOR] erro no ciclo: {e}")
-        _acordar_coletor.wait(max(5, col.INTERVALO - (time.time() % col.INTERVALO)))   # dorme até o próximo ciclo ou um pedido manual
+                log(f"[COLETOR] erro: {e}")
+        _acordar_coletor.wait(max(5, rapido - (time.time() % rapido)))   # próxima leitura rápida ou pedido manual
         _acordar_coletor.clear()
 
 
@@ -740,7 +762,7 @@ def api_coletor_atualizar():
         return jsonify({'ok': False, 'motivo': f'A última coleta foi há {int(desde)}s. Tente de novo em {int(COLETA_MANUAL_INTERVALO_MIN - desde)}s.'}), 429
     garantir_coletor_interno()
     _acordar_coletor.set()
-    return jsonify({'ok': True, 'motivo': 'Coleta iniciada. Em 1 a 2 minutos os dados novos aparecem no site.'})
+    return jsonify({'ok': True, 'motivo': 'Leitura de Brasil, estados e exterior iniciada. Em poucos segundos aparece no site.'})
 
 
 @app.route('/api/zonas/<uf>/<cd_mun>')
@@ -829,6 +851,7 @@ def api_saude():
         'tse': {'ultima_volta_ha_seg': int(agora - _laco_tse['volta']) if _laco_tse['volta'] else None},
         'coletor_interno': {'ligado': COLETOR_NO_RENDER, 'modo': 'completo' if COLETOR_COMPLETO else 'leve',
                             'ultimo_ciclo_ha_seg': int(agora - _coletor_interno['ultimo_ciclo']) if _coletor_interno['ultimo_ciclo'] else None,
+                            'ultimo_completo_ha_seg': int(agora - _coletor_interno['ultimo_completo']) if _coletor_interno['ultimo_completo'] else None,
                             'encerrado': _coletor_interno['encerrado'], 'ultimo_erro': _coletor_interno['ultimo_erro']},
     })
     resp.headers['Cache-Control'] = 'no-store'

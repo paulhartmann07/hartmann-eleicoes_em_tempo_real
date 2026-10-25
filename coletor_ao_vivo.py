@@ -23,7 +23,9 @@ import gzip
 import json
 import math
 import os
+import re
 import sys
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
@@ -35,7 +37,9 @@ from congelar_ao_vivo import CARGOS, ESTADOS, TSE_BASE, descobrir_codigos, norma
 
 BRT = timezone(timedelta(hours=-3))
 INTERVALO = int(os.environ.get('COLETOR_INTERVALO_SEG', 300))
-WORKERS = int(os.environ.get('COLETOR_WORKERS', 32))
+WORKERS = int(os.environ.get('COLETOR_WORKERS', 8))
+RPS_INICIAL = float(os.environ.get('COLETOR_RPS', 10))       # pedidos por segundo ao TSE (começa conservador)
+RPS_MAXIMO = float(os.environ.get('COLETOR_RPS_MAX', 20))
 MAX_LOTE_BYTES = 700_000        # cada chamada ao Upstash fica bem abaixo do limite de 1 MB
 EXPIRA_SEG = 60 * 86400         # tudo expira sozinho em 60 dias (não acumula lixo)
 MAX_PONTOS_HISTORICO = 2000
@@ -58,10 +62,50 @@ sessao.mount('http://', requests.adapters.HTTPAdapter(pool_connections=WORKERS, 
 cache_http = {}      # url -> (etag, last_modified, resultado_processado)
 
 
-def baixar(url, tentativas=3):
+class Limitador:
+    """Limita os pedidos ao TSE por segundo (todas as threads juntas). Em 429, pausa todo mundo e reduz a velocidade."""
+
+    def __init__(self, rps):
+        self.rps = rps
+        self.proximo = time.monotonic()
+        self.pausa_ate = 0.0
+        self.recusas = 0
+        self.lock = threading.Lock()
+
+    def esperar(self):
+        with self.lock:
+            inicio = max(time.monotonic(), self.proximo, self.pausa_ate)
+            self.proximo = inicio + 1.0 / self.rps
+        espera = inicio - time.monotonic()
+        if espera > 0:
+            time.sleep(espera)
+
+    def recusado(self, segundos):
+        with self.lock:
+            self.recusas += 1
+            novo = time.monotonic() + segundos
+            if novo > self.pausa_ate + 1:   # um aviso e uma redução por rajada de recusas, não por pedido
+                self.rps = max(2.0, self.rps / 2)
+                print(f"  ⚠ TSE pediu para ir mais devagar (429): pausa de {segundos}s, agora {self.rps:.0f} pedidos/s", flush=True)
+            self.pausa_ate = max(self.pausa_ate, novo)
+
+    def fim_de_ciclo(self):
+        with self.lock:
+            if self.recusas == 0 and self.rps < RPS_MAXIMO:
+                self.rps = min(RPS_MAXIMO, self.rps * 1.25)   # ciclo limpo: acelera aos poucos
+            self.recusas = 0
+
+
+limitador = Limitador(RPS_INICIAL)
+
+
+def baixar(url, tentativas=4):
     """Devolve (resultado, status) com status 'novo', 'igual', 'ausente' (404) ou 'falha'.
     Em falha devolve o último resultado conhecido, para nunca 'zerar' um município."""
     anterior = cache_http.get(url)
+    if anterior and anterior[2] and anterior[2].get('apurado') == '100,00' and '/zz/zz-' not in url \
+            and not re.search(r'/(br|[a-z]{2})-c\d{4}-', url):
+        return anterior[2], 'concluido'   # município/zona 100% apurado não muda mais: nem pergunta ao TSE
     cab = {'User-Agent': 'Mozilla/5.0 (coletor eleicoes)'}
     if anterior:
         if anterior[0]:
@@ -69,8 +113,16 @@ def baixar(url, tentativas=3):
         if anterior[1]:
             cab['If-Modified-Since'] = anterior[1]
     for t in range(tentativas):
+        limitador.esperar()
         try:
             r = sessao.get(url, headers=cab, timeout=15)
+            if r.status_code == 429:
+                try:
+                    pausa = min(120, max(5, int(r.headers.get('Retry-After', 30))))
+                except ValueError:
+                    pausa = 30
+                limitador.recusado(pausa)
+                continue
             if r.status_code == 304 and anterior:
                 return anterior[2], 'igual'
             if r.status_code == 200:
@@ -184,7 +236,7 @@ def consolidar_exterior(res, cidades):
 
 
 # ===================== UM CICLO =====================
-def ciclo(ano, turno, cod, municipios, banco, ufs_governador, completo=True):
+def ciclo(ano, turno, cod, municipios, banco, ufs_governador, completo=True, publicar_resumo=True):
     """completo=False (modo leve, para o Render gratuito): sem zonas e sem governador por município."""
     inicio = time.time()
 
@@ -197,14 +249,20 @@ def ciclo(ano, turno, cod, municipios, banco, ufs_governador, completo=True):
 
     cargos_mun = ['presidente'] + (['governador'] if turno == 2 else ['governador', 'senador'])
 
-    res, contagem = {}, {'novo': 0, 'igual': 0, 'ausente': 0, 'falha': 0}
+    res, contagem = {}, {'novo': 0, 'igual': 0, 'ausente': 0, 'falha': 0, 'concluido': 0}
 
-    def executar(tarefas):
+    def executar(tarefas, rotulo):
+        feitas, ultimo_aviso = 0, time.time()
         with ThreadPoolExecutor(max_workers=WORKERS) as ex:
             for (k, _), (r, st) in zip(tarefas, ex.map(lambda t: baixar(t[1]), tarefas)):
                 contagem[st] += 1
+                feitas += 1
                 if r:
                     res[k] = r
+                if time.time() - ultimo_aviso > 20:   # progresso a cada 20s, para nunca parecer travado
+                    ultimo_aviso = time.time()
+                    n = lambda x: f"{x:,}".replace(',', '.')
+                    print(f"    … {rotulo}: {n(feitas)}/{n(len(tarefas))} arquivos ({limitador.rps:.0f} pedidos/s)", flush=True)
 
     # Fase 1: Brasil e UFs (inclui governador da UF, para saber onde há 2º turno de governador)
     fase1 = [(('br', 'presidente'), url('br', 'presidente', 'br'))]
@@ -212,7 +270,7 @@ def ciclo(ano, turno, cod, municipios, banco, ufs_governador, completo=True):
         fase1.append(((uf, 'presidente'), url(uf.lower(), 'presidente', uf)))
         fase1.append(((uf, 'governador'), url(uf.lower(), 'governador', uf)))
     fase1.append((('ZZ', 'presidente'), url('zz', 'presidente', 'zz')))
-    executar(fase1)
+    executar(fase1, 'Brasil e UFs')
     for uf in ESTADOS:
         if res.get((uf, 'governador'), {}).get('candidatos'):
             ufs_governador.add(uf)
@@ -230,7 +288,7 @@ def ciclo(ano, turno, cod, municipios, banco, ufs_governador, completo=True):
                     fase2.append(((uf, m['codigo'], z, cargo), url(f"{u}{m['codigo']}-z{z}", cargo, uf)))
     for m in municipios.get('ZZ', []):   # ~186 cidades: entra também no modo leve
         fase2.append((('ZZ', m['codigo'], 'presidente'), url(f"zz{m['codigo']}", 'presidente', 'zz')))
-    executar(fase2)
+    executar(fase2, 'municípios, zonas e exterior')
     tarefas = fase1 + fase2
 
     agora_brt = datetime.now(BRT)
@@ -270,12 +328,13 @@ def ciclo(ano, turno, cod, municipios, banco, ufs_governador, completo=True):
                 [[c['nome'], c['partido'], int(c['votos'].replace('.', '') or 0), c['percentual']] for c in r.get('candidatos', [])[:5]]]
 
     # --- gravação no Upstash, em lotes
-    comandos = [['SET', chave(ano, turno, 'resumo'), empacotar(resumo), 'EX', EXPIRA_SEG]]
+    estado_exterior['disponivel'] = resumo['exterior_disponivel']
+    comandos = [['SET', chave(ano, turno, 'resumo'), empacotar(resumo), 'EX', EXPIRA_SEG]] if publicar_resumo else []
     comandos += [['SET', chave(ano, turno, 'uf', uf), empacotar(f), 'EX', EXPIRA_SEG] for uf, f in fotos.items()]
     if exterior['total'].get('candidatos'):
         comandos.append(['SET', chave(ano, turno, 'exterior'), empacotar(exterior), 'EX', EXPIRA_SEG])
     serie = [('BR', brasil)] + list(estados.items()) + ([('ZZ', exterior['total'])] if exterior['total'].get('candidatos') else [])
-    for abr, r in serie:
+    for abr, r in (serie if publicar_resumo else []):
         k = chave(ano, turno, 'hist', abr)
         comandos += [['RPUSH', k, json.dumps(ponto(r), ensure_ascii=False, separators=(',', ':'))],
                      ['LTRIM', k, -MAX_PONTOS_HISTORICO, -1], ['EXPIRE', k, EXPIRA_SEG]]
@@ -295,8 +354,47 @@ def ciclo(ano, turno, cod, municipios, banco, ufs_governador, completo=True):
     n = lambda x: f"{x:,}".replace(',', '.')
     lideres = ' x '.join(f"{c['nome']} {c['percentual']}%" for c in brasil.get('candidatos', [])[:2]) or 'sem votos'
     print(f"  {agora_brt:%H:%M:%S} | Brasil {brasil.get('apurado')}% apurado | {lideres} | "
-          f"{n(len(tarefas))} arquivos ({n(contagem['igual'])} sem mudança, {contagem['falha']} falhas) "
-          f"em {time.time() - inicio:.0f}s")
+          f"{n(len(tarefas))} arquivos ({n(contagem['igual'])} sem mudança, {n(contagem['concluido'])} já em 100%, "
+          f"{contagem['falha']} falhas) em {time.time() - inicio:.0f}s", flush=True)
+    limitador.fim_de_ciclo()
+    return finalizado
+
+
+estado_exterior = {'disponivel': False}
+
+
+def ciclo_rapido(ano, turno, cod, banco):
+    """Brasil, UFs e total do exterior (~55 arquivos): grava os cards e um ponto do gráfico de evolução."""
+    def url(abr, cargo, uf):
+        tipo, c = CARGOS[cargo]
+        return f"{TSE_BASE}/ele{ano}/{int(cod[tipo])}/dados/{uf}/{abr}-c{c:04d}-e{int(cod[tipo]):06d}-u.json"
+    tarefas = [(('br', 'presidente'), url('br', 'presidente', 'br')), (('ZZ', 'presidente'), url('zz', 'presidente', 'zz'))]
+    tarefas += [((uf, 'presidente'), url(uf.lower(), 'presidente', uf)) for uf in ESTADOS]
+    res = {}
+    with ThreadPoolExecutor(max_workers=WORKERS) as ex:
+        for (k, _), (r, _st) in zip(tarefas, ex.map(lambda t: baixar(t[1]), tarefas)):
+            if r:
+                res[k] = r
+    brasil = res.get(('br', 'presidente'), {'apurado': '0,00', 'candidatos': []})
+    estados = {uf: res[(uf, 'presidente')] for uf in ESTADOS if (uf, 'presidente') in res}
+    exterior = res.get(('ZZ', 'presidente'))
+    finalizado = brasil.get('apurado') == '100,00' and all(estados.get(uf, {}).get('apurado') == '100,00' for uf in ESTADOS)
+    resumo = {'ultima_atualizacao': datetime.now(BRT).strftime('%H:%M:%S'), 'gerado_em': int(time.time()), 'finalizado': finalizado,
+              'brasil': brasil, 'estados': estados, 'mapa_municipal': True, 'exterior_disponivel': estado_exterior['disponivel']}
+
+    def ponto(r):
+        return [int(time.time()), r.get('apurado', '0,00'),
+                [[c['nome'], c['partido'], int(c['votos'].replace('.', '') or 0), c['percentual']] for c in r.get('candidatos', [])[:5]]]
+    comandos = [['SET', chave(ano, turno, 'resumo'), empacotar(resumo), 'EX', EXPIRA_SEG]]
+    serie = [('BR', brasil)] + list(estados.items()) + ([('ZZ', exterior)] if exterior and exterior.get('candidatos') else [])
+    for abr, r in serie:
+        k = chave(ano, turno, 'hist', abr)
+        comandos += [['RPUSH', k, json.dumps(ponto(r), ensure_ascii=False, separators=(',', ':'))],
+                     ['LTRIM', k, -MAX_PONTOS_HISTORICO, -1], ['EXPIRE', k, EXPIRA_SEG]]
+    comandos.append(['SET', chave(ano, turno, 'versao'), str(int(time.time())), 'EX', EXPIRA_SEG])
+    banco._pipeline(comandos)
+    lideres = ' x '.join(f"{c['nome']} {c['percentual']}%" for c in brasil.get('candidatos', [])[:2]) or 'sem votos'
+    print(f"  {datetime.now(BRT):%H:%M:%S} ⚡ Brasil {brasil.get('apurado')}% apurado | {lideres}", flush=True)
     return finalizado
 
 
@@ -305,21 +403,35 @@ def main(ano, turno):
     if not (url and token):
         sys.exit("Defina UPSTASH_REDIS_REST_URL e UPSTASH_REDIS_REST_TOKEN (os mesmos do Render).")
     banco = ArmazenamentoUpstash(url, token)
-    print(f"\n=== Coletor ao vivo {ano} – {turno}º turno (a cada {INTERVALO // 60} min) ===")
+    print(f"\n=== Coletor ao vivo {ano} – {turno}º turno (a cada {INTERVALO}s, até {RPS_INICIAL:.0f}-{RPS_MAXIMO:.0f} pedidos/s ao TSE) ===")
     cod = descobrir_codigos(ano, turno)
     municipios = carregar_municipios(ano, cod)
     ufs_governador = set()
+    RAPIDO = int(os.environ.get('COLETOR_RAPIDO_SEG', 60))
+    parar = threading.Event()
+
+    def frente_completa():
+        while not parar.is_set():
+            inicio = time.time()
+            try:
+                ciclo(ano, turno, cod, municipios, banco, ufs_governador, publicar_resumo=False)
+            except Exception as e:
+                print(f"  ✘ erro no ciclo completo: {e} (tento de novo no próximo)", flush=True)
+            parar.wait(max(5, INTERVALO - (time.time() - inicio)))   # ciclo longo: emenda; curto: espera o intervalo
+
+    print(f"  ⚡ Brasil, UFs e exterior a cada {RAPIDO}s | 🗺️ municípios, zonas e cidades do exterior em seguida, no ritmo do TSE", flush=True)
+    threading.Thread(target=frente_completa, daemon=True).start()
     while True:
         try:
-            if ciclo(ano, turno, cod, municipios, banco, ufs_governador):
-                print("\n  ✔ Apuração encerrada (100% em todas as UFs). Coletor parado.")
-                print(f"  Agora rode: python congelar_ao_vivo.py {ano} {turno}  e faça o git push.")
+            if ciclo_rapido(ano, turno, cod, banco):
+                print("\n  ✔ Apuração encerrada (100% em todas as UFs). Fazendo uma última leitura completa...", flush=True)
+                parar.set()
+                ciclo(ano, turno, cod, municipios, banco, ufs_governador)
+                print(f"  ✔ Coletor parado. Agora rode: python congelar_ao_vivo.py {ano} {turno}  e faça o git push.", flush=True)
                 return
         except Exception as e:
-            print(f"  ✘ erro no ciclo: {e} (tento de novo no próximo)")
-        # alinha nos múltiplos de 5 min (17:00, 17:05...) para o gráfico ficar regular
-        espera = INTERVALO - (time.time() % INTERVALO)
-        time.sleep(max(5, espera))
+            print(f"  ✘ erro na leitura rápida: {e}", flush=True)
+        time.sleep(max(5, RAPIDO - (time.time() % RAPIDO)))
 
 
 if __name__ == '__main__':
