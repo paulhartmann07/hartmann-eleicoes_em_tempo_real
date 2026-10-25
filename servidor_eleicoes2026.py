@@ -662,7 +662,9 @@ def api_detalhes_municipio(uf, cd_mun):
 # COLETOR_COMPLETO=1 inclui zonas e governador por município (pesado para 0,1 CPU: use só em plano pago).
 COLETOR_NO_RENDER = os.environ.get('COLETOR_NO_RENDER') == '1'
 COLETOR_COMPLETO = os.environ.get('COLETOR_COMPLETO') == '1'
-_coletor_interno = {'pid': None, 'thread': None, 'ultimo_ciclo': 0, 'ultimo_erro': None, 'encerrado': False}
+_coletor_interno = {'pid': None, 'thread': None, 'ultimo_ciclo': 0, 'ultimo_erro': None, 'encerrado': False, 'coletando': False}
+_acordar_coletor = threading.Event()   # /api/coletor/atualizar acorda o coletor antes dos 5 min
+COLETA_MANUAL_INTERVALO_MIN = 60       # segundos mínimos entre duas coletas
 _lock_coletor_interno = threading.Lock()
 
 
@@ -684,7 +686,13 @@ def _laco_coletor_interno():
                     cod = col.descobrir_codigos(ano, turno)
                     preparado[(ano, turno)] = (cod, col.carregar_municipios(ano, cod), set())
                 cod, muns, gov = preparado[(ano, turno)]
-                if col.ciclo(ano, turno, cod, muns, banco, gov, completo=COLETOR_COMPLETO):
+                _coletor_interno['coletando'] = True
+                try:
+                    terminou = col.ciclo(ano, turno, cod, muns, banco, gov, completo=COLETOR_COMPLETO)
+                finally:
+                    _coletor_interno['coletando'] = False
+                coletor.estados.get((ano, turno), {})['checado'] = 0   # o site já lê a foto nova, sem esperar 30s
+                if terminou:
                     log(f"[COLETOR] {ano} {turno}º turno chegou a 100%: coleta encerrada")
                     _coletor_interno['encerrado'] = True
                     return
@@ -692,7 +700,8 @@ def _laco_coletor_interno():
             except (Exception, SystemExit) as e:   # carregar_municipios usa sys.exit em falha
                 _coletor_interno['ultimo_erro'] = f"{time.strftime('%d/%m %H:%M')}: {e}"
                 log(f"[COLETOR] erro no ciclo: {e}")
-        time.sleep(max(5, col.INTERVALO - (time.time() % col.INTERVALO)))
+        _acordar_coletor.wait(max(5, col.INTERVALO - (time.time() % col.INTERVALO)))   # dorme até o próximo ciclo ou um pedido manual
+        _acordar_coletor.clear()
 
 
 def garantir_coletor_interno():
@@ -712,6 +721,26 @@ def garantir_coletor_interno():
 
 
 app.before_request(garantir_coletor_interno)
+
+
+@app.route('/api/coletor/atualizar')
+def api_coletor_atualizar():
+    """Força uma coleta agora (protegido por senha). Uso: /api/coletor/atualizar?chave=SUA_SENHA"""
+    chave = os.environ.get('COLETOR_CHAVE') or os.environ.get('RELATORIO_CHAVE')
+    if not chave or request.args.get('chave', '') != chave:
+        return Response('Não encontrado', status=404)
+    if not COLETOR_NO_RENDER:
+        return jsonify({'ok': False, 'motivo': 'O coletor não roda neste servidor (COLETOR_NO_RENDER não está ligado).'}), 409
+    if _coletor_interno['encerrado']:
+        return jsonify({'ok': False, 'motivo': 'A apuração já terminou: o coletor foi encerrado.'}), 409
+    if _coletor_interno['coletando']:
+        return jsonify({'ok': True, 'motivo': 'Uma coleta já está em andamento. O site atualiza assim que ela terminar.'})
+    desde = time.time() - _coletor_interno['ultimo_ciclo']
+    if _coletor_interno['ultimo_ciclo'] and desde < COLETA_MANUAL_INTERVALO_MIN:
+        return jsonify({'ok': False, 'motivo': f'A última coleta foi há {int(desde)}s. Tente de novo em {int(COLETA_MANUAL_INTERVALO_MIN - desde)}s.'}), 429
+    garantir_coletor_interno()
+    _acordar_coletor.set()
+    return jsonify({'ok': True, 'motivo': 'Coleta iniciada. Em 1 a 2 minutos os dados novos aparecem no site.'})
 
 
 @app.route('/api/zonas/<uf>/<cd_mun>')
