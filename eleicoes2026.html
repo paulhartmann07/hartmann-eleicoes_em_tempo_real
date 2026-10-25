@@ -160,6 +160,43 @@
         .aviso-ao-vivo { background: #fff8e1; border: 1px solid #f5d77a; border-left: 5px solid #f59e0b; border-radius: 10px;
                          padding: 12px 16px; margin-bottom: 15px; font-size: 14px; line-height: 1.5; color: #5c4400; }
 
+        /* Stories */
+        .stories-faixa { display: flex; gap: 14px; overflow-x: auto; padding: 4px 2px 10px; margin-bottom: 8px; scrollbar-width: none; }
+        .stories-faixa::-webkit-scrollbar { display: none; }
+        .story-bolha { flex: 0 0 auto; width: 76px; border: none; background: none; cursor: pointer; padding: 0; text-align: center; color: var(--texto); }
+        .story-anel { display: block; box-sizing: border-box; width: 66px; height: 66px; margin: 0 auto 5px; border-radius: 50%; padding: 3px; background: linear-gradient(135deg, #f59e0b, #0f766e, #4338ca); }
+        .story-bolha.visto .story-anel { background: #ced0d4; }
+        .story-circulo { box-sizing: border-box; width: 100%; height: 100%; border-radius: 50%; border: 3px solid var(--fundo); display: flex; align-items: center; justify-content: center; font-size: 26px; }
+        .story-rotulo { font-size: 11px; font-weight: 600; line-height: 1.2; display: block; }
+        .stories-cabecalho { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+        .stories-cabecalho b { font-size: 13px; text-transform: uppercase; color: var(--azul); }
+        .stories-cabecalho small { font-size: 11px; color: var(--cinza); }
+        .story-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+        .story-card { border: none; border-radius: 14px; padding: 18px; color: #fff; text-align: left; cursor: pointer; min-height: 190px; display: flex; flex-direction: column; gap: 8px; box-shadow: var(--sombra); font: inherit; }
+        .story-card .sc-cat { font-size: 11px; font-weight: 700; text-transform: uppercase; opacity: 0.85; }
+        .story-card .sc-tit { font-size: 18px; font-weight: 800; line-height: 1.25; }
+        .story-card .sc-txt { font-size: 13px; line-height: 1.45; opacity: 0.95; white-space: pre-line; flex: 1; }
+        .story-card .sc-fonte { font-size: 11px; opacity: 0.8; }
+        .story-overlay { position: fixed; inset: 0; z-index: 10000; background: rgba(10,12,16,0.92); display: flex; align-items: center; justify-content: center; }
+        .story-overlay[hidden] { display: none; }
+        .story-tela { position: relative; width: min(420px, 100vw); height: min(760px, 100dvh); border-radius: 18px; overflow: hidden; color: #fff; display: flex; flex-direction: column; padding: 18px 22px 22px; box-sizing: border-box; user-select: none; }
+        .story-barras { display: flex; gap: 4px; margin-bottom: 12px; }
+        .story-barra { flex: 1; height: 3px; border-radius: 2px; background: rgba(255,255,255,0.35); overflow: hidden; }
+        .story-barra i { display: block; height: 100%; width: 0; background: #fff; }
+        .story-topo { display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 700; text-transform: uppercase; opacity: 0.9; }
+        .story-fechar { background: none; border: none; color: #fff; font-size: 26px; line-height: 1; cursor: pointer; padding: 0 4px; }
+        .story-corpo { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 14px; }
+        .story-emoji { font-size: 54px; }
+        .story-titulo { font-size: 28px; font-weight: 800; line-height: 1.15; }
+        .story-texto { font-size: 17px; line-height: 1.5; white-space: pre-line; }
+        .story-dados { display: flex; flex-direction: column; gap: 8px; }
+        .story-dado { background: rgba(255,255,255,0.12); border-radius: 10px; padding: 8px 12px; font-size: 15px; display: flex; justify-content: space-between; gap: 10px; }
+        .story-rodape { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 12px; opacity: 0.95; }
+        .story-link { background: #fff; color: #1c1e21; font-weight: 700; font-size: 13px; padding: 9px 14px; border-radius: 20px; text-decoration: none; white-space: nowrap; }
+        .story-toque { position: absolute; top: 60px; bottom: 80px; width: 35%; z-index: 1; }
+        .story-toque.esq { left: 0; } .story-toque.dir { right: 0; }
+        @media (max-width: 500px) { .story-tela { border-radius: 0; height: 100dvh; } }
+
         /* Dispositivos móveis */
         @media (max-width: 900px) {
             body { padding: 8px; }
@@ -191,6 +228,7 @@
 
     <nav class="abas-site" role="tablist" aria-label="Seções do site">
         <a href="#apuracao" id="aba-apuracao" class="aba-site ativa" role="tab" aria-selected="true">🗳️ Apuração</a>
+        <a href="#analises" id="aba-analises" class="aba-site" role="tab" aria-selected="false">📰 Análises</a>
         <a href="#evolucao" id="aba-evolucao" class="aba-site" role="tab" aria-selected="false">📈 Evolução da apuração</a>
         <a href="#acessos" id="aba-acessos" class="aba-site" role="tab" aria-selected="false">👥 Acessos ao site <span id="aba-acessos-agora" class="badge-agora" title="pessoas acessando agora"></span></a>
     </nav>
@@ -206,6 +244,11 @@
             <button id="tab-t2" class="btn-toggle" role="tab" aria-selected="false" onclick="selecionarEleicao(eleicao.ano, 2)">2º Turno</button>
         </div>
         <span id="eleicao-info" class="eleicao-info"></span>
+    </div>
+
+    <div id="stories-apuracao" hidden>
+        <div class="stories-cabecalho"><b>📰 Análises do 2º turno</b><small id="stories-atualizado"></small></div>
+        <div class="stories-faixa" id="stories-faixa"></div>
     </div>
 
     <div class="aviso-ao-vivo" id="aviso-ao-vivo" role="status" hidden>
@@ -309,6 +352,31 @@
         </div>
         <div id="zonas-conteudo"></div>
     </div>
+    </div>
+
+    <section id="secao-analises" hidden>
+        <div class="controls-bar">
+            <div class="status-text" id="an-status">Carregando...</div>
+            <button class="btn-toggle active" onclick="abrirStories(0)">▶ Ver como stories</button>
+        </div>
+        <div class="story-cards" id="story-cards"></div>
+        <p class="nota-privacidade" id="an-aviso" style="margin-top:15px"></p>
+    </section>
+
+    <div class="story-overlay" id="story-overlay" hidden role="dialog" aria-modal="true" aria-label="Stories">
+        <div class="story-tela" id="story-tela">
+            <div class="story-barras" id="story-barras"></div>
+            <div class="story-topo"><span id="story-cat"></span><button class="story-fechar" aria-label="Fechar" onclick="fecharStories()">×</button></div>
+            <div class="story-toque esq" onclick="storyAnterior()"></div>
+            <div class="story-toque dir" onclick="storyProximo()"></div>
+            <div class="story-corpo">
+                <div class="story-emoji" id="story-emoji"></div>
+                <div class="story-titulo" id="story-titulo"></div>
+                <div class="story-texto" id="story-texto"></div>
+                <div class="story-dados" id="story-dados"></div>
+            </div>
+            <div class="story-rodape"><span id="story-fonte"></span><a class="story-link" id="story-link" target="_blank" rel="noopener noreferrer">Ler na fonte ↗</a></div>
+        </div>
     </div>
 
     <section id="secao-evolucao" hidden>
@@ -634,6 +702,7 @@
             $('select-ano').value = eleicao.ano;
             atualizarAbas(info);
             atualizarTitulos();
+            carregarStories();
             atualizarEstilo();
             atualizarTooltips();
             atualizarPainelRegioes();
@@ -1318,6 +1387,149 @@
             $('regioes-list').innerHTML = html;
         }
 
+        // ===================== STORIES (análises antes e durante a apuração) =====================
+        let pacoteStories = null, storyAtual = 0, storyTimer = null, storyInicio = 0, storyPausado = 0;
+        const DURACAO_STORY = 8000;
+        const storiesVistos = new Set();
+
+        async function carregarStories() {
+            try {
+                if (!pacoteStories) pacoteStories = await getJSON('/static/stories.json');
+            } catch { return; }
+            const p = pacoteStories;
+            const daEleicao = p.eleicao && p.eleicao.ano === eleicao.ano && p.eleicao.turno === eleicao.turno;
+            $('stories-apuracao').hidden = !daEleicao || !p.stories.length;
+            $('stories-atualizado').textContent = p.atualizado ? `atualizado em ${p.atualizado}` : '';
+            $('stories-faixa').innerHTML = p.stories.map((st, i) => `
+                <button class="story-bolha${storiesVistos.has(st.id) ? ' visto' : ''}" onclick="abrirStories(${i})" aria-label="${esc(st.titulo)}">
+                    <span class="story-anel"><span class="story-circulo" style="background:${st.cor[0]}">${st.emoji}</span></span>
+                    <span class="story-rotulo">${esc(st.categoria)}</span>
+                </button>`).join('');
+            $('an-status').innerHTML = `<b>${p.stories.length}</b> análises · atualizado em <b>${esc(p.atualizado || '')}</b>`;
+            $('an-aviso').textContent = p.aviso || '';
+            $('story-cards').innerHTML = p.stories.map((st, i) => `
+                <button class="story-card" style="background:linear-gradient(160deg, ${st.cor[0]}, ${st.cor[1]})" onclick="abrirStories(${i})">
+                    <span class="sc-cat">${st.emoji} ${esc(st.categoria)}</span>
+                    <span class="sc-tit">${esc(st.titulo)}</span>
+                    <span class="sc-txt">${esc(st.texto)}</span>
+                    <span class="sc-fonte">Fonte: ${esc(st.fonte)}</span>
+                </button>`).join('');
+        }
+
+        // "Como foi o 1º turno": números tirados dos dados oficiais congelados deste site
+        let primeiroTurnoCache = null;
+        async function dadosPrimeiroTurno() {
+            if (!primeiroTurnoCache) {
+                const d = await getJSON(`/api/votacao?ano=${pacoteStories.eleicao.ano}&turno=1`);
+                primeiroTurnoCache = (d.brasil?.candidatos || []).slice(0, 5);
+            }
+            return primeiroTurnoCache;
+        }
+
+        function abrirStories(i) {
+            if (!pacoteStories?.stories.length) return;
+            $('story-overlay').hidden = false;
+            document.body.style.overflow = 'hidden';
+            $('story-barras').innerHTML = pacoteStories.stories.map(() => '<span class="story-barra"><i></i></span>').join('');
+            mostrarStory(i);
+        }
+
+        function fecharStories() {
+            clearTimeout(storyTimer);
+            $('story-overlay').hidden = true;
+            document.body.style.overflow = '';
+            carregarStories();   // atualiza os anéis de "visto"
+        }
+
+        async function mostrarStory(i) {
+            const lista = pacoteStories.stories;
+            if (i < 0) i = 0;
+            if (i >= lista.length) { fecharStories(); return; }
+            storyAtual = i;
+            const st = lista[i];
+            storiesVistos.add(st.id);
+            $('story-tela').style.background = `linear-gradient(160deg, ${st.cor[0]}, ${st.cor[1]})`;
+            $('story-cat').textContent = `${st.categoria} · ${i + 1}/${lista.length}`;
+            $('story-emoji').textContent = st.emoji;
+            $('story-titulo').textContent = st.titulo;
+            $('story-texto').textContent = st.texto;
+            $('story-dados').innerHTML = '';
+            $('story-fonte').textContent = `Fonte: ${st.fonte}`;
+            const link = $('story-link');
+            const interno = (st.url || '').startsWith('#');
+            link.href = st.url || '#';
+            link.target = interno ? '' : '_blank';
+            link.textContent = interno ? 'Ver no site →' : 'Ler na fonte ↗';
+            link.onclick = interno ? (ev => { ev.preventDefault(); fecharStories(); location.hash = st.url; }) : null;
+            [...$('story-barras').children].forEach((b, k) => {
+                const barra = b.firstChild;
+                barra.style.transition = 'none';
+                barra.style.width = k < i ? '100%' : '0';
+            });
+            if (st.tipo === 'primeiro_turno') {
+                try {
+                    const cands = await dadosPrimeiroTurno();
+                    if (storyAtual === i) $('story-dados').innerHTML = cands.map((c, k) =>
+                        `<div class="story-dado"><span>${k + 1}º ${esc(c.nome)}${c.partido ? ` (${esc(c.partido)})` : ''}</span><b>${esc(c.percentual)}%</b></div>`).join('');
+                } catch { /* sem dados do 1º turno: fica só o texto */ }
+            }
+            iniciarBarra(DURACAO_STORY);
+        }
+
+        function iniciarBarra(ms) {
+            clearTimeout(storyTimer);
+            const barra = $('story-barras').children[storyAtual]?.firstChild;
+            if (!barra) return;
+            requestAnimationFrame(() => {
+                barra.style.transition = `width ${ms}ms linear`;
+                barra.style.width = '100%';
+            });
+            storyInicio = Date.now();
+            storyPausado = ms;
+            storyTimer = setTimeout(storyProximo, ms);
+        }
+
+        function pausarStory() {
+            clearTimeout(storyTimer);
+            const barra = $('story-barras').children[storyAtual]?.firstChild;
+            if (!barra) return;
+            const restante = Math.max(0, storyPausado - (Date.now() - storyInicio));
+            const largura = getComputedStyle(barra).width;
+            barra.style.transition = 'none';
+            barra.style.width = largura;
+            storyPausado = restante;
+        }
+        function retomarStory() {
+            if ($('story-overlay').hidden) return;
+            const barra = $('story-barras').children[storyAtual]?.firstChild;
+            if (!barra) return;
+            requestAnimationFrame(() => { barra.style.transition = `width ${storyPausado}ms linear`; barra.style.width = '100%'; });
+            storyInicio = Date.now();
+            storyTimer = setTimeout(storyProximo, storyPausado);
+        }
+
+        const storyProximo = () => mostrarStory(storyAtual + 1);
+        const storyAnterior = () => mostrarStory(storyAtual - 1);
+
+        // segurar o dedo/mouse pausa; deslizar para baixo fecha; teclado no computador
+        (() => {
+            const tela = $('story-tela');
+            let y0 = null;
+            tela.addEventListener('pointerdown', ev => { if (!ev.target.closest('a,button')) { pausarStory(); y0 = ev.clientY; } });
+            tela.addEventListener('pointerup', ev => {
+                if (y0 !== null && ev.clientY - y0 > 90) { y0 = null; fecharStories(); return; }
+                y0 = null; retomarStory();
+            });
+            tela.addEventListener('pointercancel', () => { y0 = null; retomarStory(); });
+            $('story-overlay').addEventListener('click', ev => { if (ev.target.id === 'story-overlay') fecharStories(); });
+            document.addEventListener('keydown', ev => {
+                if ($('story-overlay').hidden) return;
+                if (ev.key === 'Escape') fecharStories();
+                else if (ev.key === 'ArrowRight') storyProximo();
+                else if (ev.key === 'ArrowLeft') storyAnterior();
+            });
+        })();
+
         // ===================== LEGENDA =====================
         const legenda = L.control({ position: 'bottomright' });
         legenda.onAdd = () => L.DomUtil.create('div', 'legend');
@@ -1512,20 +1724,25 @@
         }
 
         // ===================== ABAS DO SITE =====================
-        const abaAtual = () => ({ '#acessos': 'acessos', '#evolucao': 'evolucao' })[location.hash] || 'apuracao';
+        const abaAtual = () => ({ '#acessos': 'acessos', '#evolucao': 'evolucao', '#analises': 'analises' })[location.hash] || 'apuracao';
 
         function mostrarAba() {
             const aba = abaAtual();
             $('secao-apuracao').hidden = aba !== 'apuracao';
             $('secao-acessos').hidden = aba !== 'acessos';
             $('secao-evolucao').hidden = aba !== 'evolucao';
-            ['apuracao', 'evolucao', 'acessos'].forEach(a => {
+            $('secao-analises').hidden = aba !== 'analises';
+            ['apuracao', 'analises', 'evolucao', 'acessos'].forEach(a => {
                 $(`aba-${a}`).classList.toggle('ativa', a === aba);
                 $(`aba-${a}`).setAttribute('aria-selected', a === aba);
             });
             if (aba === 'apuracao') {
                 atualizarTitulos();
                 setTimeout(() => map.invalidateSize(), 50); // o mapa estava escondido
+            } else if (aba === 'analises') {
+                $('titulo-pagina').textContent = 'Análises do 2º turno';
+                document.title = 'Análises do 2º turno – Eleições em tempo real';
+                carregarStories();
             } else if (aba === 'evolucao') {
                 $('titulo-pagina').textContent = `Evolução da apuração – ${eleicao.ano}, ${eleicao.turno}º turno`;
                 document.title = 'Evolução da apuração – Eleições em tempo real';
