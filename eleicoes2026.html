@@ -250,6 +250,42 @@
         .abertura .sim { background: #f59e0b; color: #1c1e21; } .abertura .nao { background: var(--borda); color: var(--texto); }
         .abertura .negociar-abertura { margin-top: 12px; background: #f59e0b; color: #1c1e21; border: none; border-radius: 8px; padding: 9px 16px; font-weight: 800; font-size: 13px; cursor: pointer; }
 
+        /* Chat ao vivo */
+        .chat-botao { position: fixed; right: 18px; bottom: 18px; z-index: 9000; background: var(--azul); color: #fff; border: none; border-radius: 28px;
+                      padding: 12px 18px; font-weight: 800; font-size: 14px; cursor: pointer; box-shadow: 0 6px 18px rgba(0,0,0,0.2); }
+        .chat-botao .chat-novas { background: #f59e0b; color: #1c1e21; border-radius: 10px; padding: 1px 7px; font-size: 12px; margin-left: 6px; }
+        .chat-painel { position: fixed; right: 18px; bottom: 18px; z-index: 9001; width: 360px; height: min(620px, calc(100dvh - 36px)); background: #fff;
+                       border-radius: 14px; box-shadow: 0 10px 34px rgba(0,0,0,0.25); display: flex; flex-direction: column; overflow: hidden; }
+        .chat-painel[hidden] { display: none; }
+        .chat-topo { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; background: var(--azul); color: #fff; }
+        .chat-topo b { font-size: 15px; } .chat-topo small { opacity: 0.85; font-size: 11px; display: block; }
+        .chat-topo button { background: none; border: none; color: #fff; font-size: 24px; cursor: pointer; line-height: 1; }
+        .chat-regras { font-size: 11px; color: var(--cinza); background: var(--suave); padding: 7px 12px; border-bottom: 1px solid var(--borda); }
+        .chat-msgs { flex: 1; overflow-y: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+        .chat-msg { font-size: 13px; line-height: 1.4; word-wrap: break-word; position: relative; padding-right: 18px; }
+        .chat-msg b { color: var(--azul); } .chat-msg .hora { color: var(--cinza); font-size: 10px; margin-left: 4px; }
+        .chat-msg.minha b { color: #b45309; }
+        .chat-denunciar { position: absolute; right: 0; top: 0; background: none; border: none; cursor: pointer; font-size: 11px; opacity: 0.35; padding: 0; }
+        .chat-denunciar:hover { opacity: 1; }
+        .chat-vazio { color: var(--cinza); font-size: 13px; text-align: center; margin-top: 30px; }
+        .chat-reacoes { display: flex; justify-content: space-around; padding: 6px 8px; border-top: 1px solid var(--borda); }
+        .chat-reacoes button { background: none; border: none; cursor: pointer; font-size: 20px; padding: 2px 4px; border-radius: 8px; line-height: 1.1; }
+        .chat-reacoes button:hover { background: var(--suave); }
+        .chat-reacoes small { display: block; font-size: 10px; color: var(--cinza); font-weight: 700; }
+        .chat-envio { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px 10px; border-top: 1px solid var(--borda); }
+        .chat-envio input { padding: 9px 10px; border: 1px solid var(--borda-input); border-radius: 8px; font-size: 14px; font-family: inherit; background: var(--suave); }
+        .chat-envio .linha { display: flex; gap: 6px; } .chat-envio .linha input { flex: 1; min-width: 0; }
+        .chat-envio button { background: var(--azul); color: #fff; border: none; border-radius: 8px; padding: 0 14px; font-weight: 800; cursor: pointer; }
+        .chat-envio button:disabled { opacity: 0.5; cursor: wait; }
+        .chat-erro { font-size: 12px; color: var(--vermelho); min-height: 0; }
+        .chat-onda { position: fixed; z-index: 9002; pointer-events: none; font-size: 26px; animation: subir 2.6s ease-out forwards; }
+        @keyframes subir { 0% { transform: translateY(0) scale(0.6); opacity: 0; } 15% { opacity: 1; transform: translateY(-30px) scale(1.1); }
+                           100% { transform: translateY(-340px) scale(1); opacity: 0; } }
+        @media (max-width: 500px) {
+            .chat-painel { right: 0; bottom: 0; width: 100vw; height: 100dvh; border-radius: 0; }
+            .chat-botao { right: 12px; bottom: 12px; padding: 11px 15px; }
+        }
+
         /* Anuncie aqui */
         .banner-anuncio { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; background: #fff;
                           border: 2px dashed #ced0d4; border-radius: 10px; padding: 12px 16px; margin-bottom: 15px; }
@@ -415,7 +451,18 @@
             'para quem acompanha a apuração.': 'for people following the count.', 'Sua marca nesta coluna, ao lado da apuração.': 'Your brand in this column, next to the count.',
             '📣 Anuncie no Eleições em tempo real': '📣 Advertise on Brazil elections live',
             'Sua marca na tela de quem acompanha a apuração: no topo, nas laterais, no rodapé ou nesta abertura.': 'Your brand on the screen of people following the count: at the top, on the sides, in the footer or in this opening window.',
-            'Agora não': 'Not now', '📣 Quero anunciar também': '📣 I want to advertise too', 'Publicidade ·': 'Advertisement ·', 'Eleições em tempo real · dados oficiais do TSE ·': 'Brazil elections live · official TSE data ·'
+            'Agora não': 'Not now',
+            '💬 Chat ao vivo': '💬 Live chat', 'Chat ao vivo': 'Live chat', 'Converse com quem acompanha a apuração': 'Chat with people following the count',
+            'Chat pausado pela moderação': 'Chat paused by the moderators',
+            'Respeito sempre: sem ofensas, sem links e sem notícias falsas. Mensagens denunciadas podem ser removidas.': 'Be respectful: no insults, no links and no fake news. Reported messages may be removed.',
+            'Seu apelido': 'Your nickname', 'Escreva uma mensagem...': 'Write a message...', 'Denunciar mensagem': 'Report message',
+            'Nenhuma mensagem ainda. Seja o primeiro!': 'No messages yet. Be the first!',
+            'Denunciar esta mensagem para a moderação?': 'Report this message to the moderators?',
+            'O chat está pausado no momento.': 'The chat is paused right now.', 'Você não pode enviar mensagens neste chat.': 'You cannot send messages in this chat.',
+            'Escolha um apelido com pelo menos 2 letras.': 'Choose a nickname with at least 2 letters.', 'Escreva uma mensagem.': 'Write a message.',
+            'Links não são permitidos no chat.': 'Links are not allowed in the chat.',
+            'Mensagem bloqueada pelo filtro do chat. Mantenha o respeito.': 'Message blocked by the chat filter. Please be respectful.',
+            'Você enviou muitas mensagens. Faça uma pausa.': 'You sent too many messages. Take a break.', 'Mensagem repetida.': 'Repeated message.', '📣 Quero anunciar também': '📣 I want to advertise too', 'Publicidade ·': 'Advertisement ·', 'Eleições em tempo real · dados oficiais do TSE ·': 'Brazil elections live · official TSE data ·'
         };
 
         const ordinalEN = n => n + ((n % 100 >= 11 && n % 100 <= 13) ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] || 'th'));
@@ -452,6 +499,7 @@
             [/^📍 (.+)$/, (m, x) => `📍 ${trEx(x)}`],
             [/^👉 Clique para ver as (\d+) cidades$/, (m, n) => `👉 Click to see the ${n} cities`],
             [/^\(fonte: (.+)\)$/, (m, x) => `(source: ${trEx(x)})`],
+            [/^Modo lento: aguarde (\d+)s para enviar outra mensagem\.$/, (m, n) => `Slow mode: wait ${n}s to send another message.`],
             [/^Fonte: (.+)$/, (m, x) => `Source: ${({ 'TSE (dados deste site)': "TSE (this site's data)", 'Eleições em tempo real': 'this site' })[x] || x}`],
             [/^Gráfico: (.+)$/, (m, x) => `Chart: ${trEx(x)}`],
             [/^\(coleta a cada 10 minutos, movimento normal\)$/, () => '(sampled every 10 minutes, normal traffic)'],
@@ -694,6 +742,21 @@
         <div class="pub pub-rodape" data-espaco="rodape"></div>
         <div class="rodape-txt">Eleições em tempo real · dados oficiais do TSE · <a onclick="abrirAnuncie()">Anuncie aqui</a></div>
     </footer>
+
+    <button class="chat-botao" id="chat-botao" onclick="abrirChat()">💬 Chat ao vivo<span class="chat-novas" id="chat-novas" hidden></span></button>
+    <section class="chat-painel" id="chat-painel" hidden aria-label="Chat ao vivo">
+        <div class="chat-topo"><div><b>💬 Chat ao vivo</b><small id="chat-status">Converse com quem acompanha a apuração</small></div>
+            <button aria-label="Fechar" onclick="fecharChat()">×</button></div>
+        <div class="chat-regras">Respeito sempre: sem ofensas, sem links e sem notícias falsas. Mensagens denunciadas podem ser removidas.</div>
+        <div class="chat-msgs" id="chat-msgs"><div class="chat-vazio">Carregando...</div></div>
+        <div class="chat-reacoes" id="chat-reacoes"></div>
+        <div class="chat-envio">
+            <input id="chat-apelido" maxlength="20" placeholder="Seu apelido" autocomplete="nickname">
+            <div class="linha"><input id="chat-texto" maxlength="200" placeholder="Escreva uma mensagem..." onkeydown="if (event.key === 'Enter') enviarChat()">
+                <button id="chat-enviar" onclick="enviarChat()">Enviar</button></div>
+            <div class="chat-erro" id="chat-erro"></div>
+        </div>
+    </section>
 
     <div class="modal-fundo" id="modal-abertura" hidden role="dialog" aria-modal="true" aria-label="Publicidade">
         <div class="abertura">
@@ -1976,7 +2039,7 @@
         // Popup periódico (espaço "intervalo"): reaparece a cada 10 min, só com anúncio vendido,
         // só com a aba visível e sem nada aberto na tela. Recarregar a página não zera a contagem.
         const INTERVALO_POPUP = 10 * 60 * 1000;
-        const algoAberto = () => !$('modal-abertura').hidden || !$('modal-anuncie').hidden || !$('story-overlay').hidden;
+        const algoAberto = () => !$('modal-abertura').hidden || !$('modal-anuncie').hidden || !$('story-overlay').hidden || !$('chat-painel').hidden;
         function lerUltimoPopup() {
             try {
                 const v = Number(localStorage.getItem('pub_intervalo') || 0);
@@ -2002,6 +2065,132 @@
         setInterval(talvezPopupIntervalo, 30000);
         $('modal-abertura').addEventListener('click', ev => { if (ev.target.id === 'modal-abertura') fecharAbertura(); });
         document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && !$('modal-abertura').hidden) fecharAbertura(); });
+
+        // ===================== CHAT AO VIVO =====================
+        // Enquanto o painel está aberto, busca mensagens a cada 4s (8s com muita gente online); fechado, a cada 30s só para o aviso de novas.
+        let chatAberto = false, chatUltimoT = 0, chatTimer = null, chatNovas = 0, chatMinhas = new Set(), chatEmojis = [], chatBase = false;
+        const chatVistoOnda = {};
+        try { $('chat-apelido').value = localStorage.getItem('chat_apelido') || ''; } catch { /* sem armazenamento */ }
+
+        function abrirChat() {
+            chatAberto = true; chatNovas = 0; $('chat-novas').hidden = true;
+            $('chat-painel').hidden = false; $('chat-botao').hidden = true;
+            chatUltimoT = 0;   // ao abrir, sempre carrega as mensagens recentes do zero
+            $('chat-msgs').innerHTML = '<div class="chat-vazio">Carregando...</div>';
+            clearTimeout(chatTimer); atualizarChat();
+            setTimeout(() => ($('chat-apelido').value ? $('chat-texto') : $('chat-apelido')).focus(), 50);
+        }
+        function fecharChat() {
+            chatAberto = false; $('chat-painel').hidden = true; $('chat-botao').hidden = false;
+            agendarChat();
+        }
+        function agendarChat() {
+            clearTimeout(chatTimer);
+            const muitos = Number(($('aba-acessos-agora')?.textContent || '').replace(/\D/g, '')) > 150;
+            chatTimer = setTimeout(atualizarChat, chatAberto ? (muitos ? 8000 : 4000) : 30000);
+        }
+        function horaCurta(t) {
+            return new Date(t * 1000).toLocaleTimeString(IDIOMA === 'en' ? 'en-US' : 'pt-BR', { hour: '2-digit', minute: '2-digit' });
+        }
+        function desenharMsg(m) {
+            const div = document.createElement('div');
+            div.className = 'chat-msg' + (chatMinhas.has(m.id) ? ' minha' : '');
+            div.innerHTML = `<b translate="no"></b><span class="hora"></span><br><span translate="no"></span>
+                <button class="chat-denunciar" title="Denunciar mensagem">⚑</button>`;
+            div.querySelector('b').textContent = m.apelido;
+            div.querySelector('.hora').textContent = horaCurta(m.t);
+            div.querySelector('span[translate]').textContent = m.texto;
+            div.querySelector('.chat-denunciar').onclick = () => denunciarChat(m.id, div);
+            return div;
+        }
+        async function atualizarChat() {
+            try {
+                const d = await getJSON(`/api/chat?desde=${chatUltimoT}`);
+                chatEmojis = d.emojis || chatEmojis;
+                $('chat-status').textContent = d.ativo ? 'Converse com quem acompanha a apuração' : 'Chat pausado pela moderação';
+                const novas = (d.msgs || []).filter(m => m.t > chatUltimoT);
+                if (chatAberto) {
+                    const caixa = $('chat-msgs');
+                    if (!chatUltimoT) caixa.innerHTML = '';
+                    const noFim = caixa.scrollHeight - caixa.scrollTop - caixa.clientHeight < 60;
+                    if (novas.length) caixa.querySelectorAll('.chat-vazio').forEach(el => el.remove());   // some o "nenhuma mensagem ainda"
+                    novas.forEach(m => caixa.appendChild(desenharMsg(m)));
+                    while (caixa.children.length > 150) caixa.firstChild.remove();
+                    if (!caixa.children.length) caixa.innerHTML = '<div class="chat-vazio">Nenhuma mensagem ainda. Seja o primeiro!</div>';
+                    if (noFim || !chatUltimoT) caixa.scrollTop = caixa.scrollHeight;
+                    desenharReacoes(d.reacoes || {});
+                    soltarOnda(d.onda || {});
+                } else if (chatBase && novas.length) {
+                    chatNovas += novas.length;
+                    $('chat-novas').textContent = chatNovas > 99 ? '99+' : chatNovas;
+                    $('chat-novas').hidden = false;
+                }
+                if (novas.length) chatUltimoT = novas[novas.length - 1].t;
+                else if (!chatUltimoT) chatUltimoT = d.agora || 0;
+                chatBase = true;   // a partir daqui, o que chegar com o chat fechado conta como novo
+            } catch { /* tenta de novo no próximo ciclo */ }
+            agendarChat();
+        }
+        function desenharReacoes(totais) {
+            const fmt = n => n >= 1000 ? (n / 1000).toFixed(1).replace('.0', '') + 'k' : String(n);
+            $('chat-reacoes').innerHTML = chatEmojis.map(e => `<button onclick="reagir('${e}', this)" aria-label="${e}">${e}<small>${fmt(totais[e] || 0)}</small></button>`).join('');
+        }
+        function bolha(emoji, origem) {
+            const r = (origem || $('chat-reacoes')).getBoundingClientRect();
+            const el = document.createElement('div');
+            el.className = 'chat-onda'; el.textContent = emoji;
+            el.style.left = (r.left + Math.random() * Math.max(30, r.width - 30)) + 'px';
+            el.style.top = (r.top - 10) + 'px';
+            el.style.animationDelay = (Math.random() * 0.8) + 's';
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 3600);
+        }
+        function soltarOnda(onda) {
+            Object.entries(onda).forEach(([e, n]) => {
+                const novas = Math.max(0, n - (chatVistoOnda[e] || 0));   // só o que ainda não animou
+                chatVistoOnda[e] = n;
+                for (let i = 0; i < Math.min(novas, 12); i++) bolha(e);
+            });
+            Object.keys(chatVistoOnda).forEach(e => { if (!onda[e]) chatVistoOnda[e] = 0; });
+        }
+        let ultimaReacao = 0;
+        function reagir(emoji, botao) {
+            if (Date.now() - ultimaReacao < 900) return;
+            ultimaReacao = Date.now();
+            bolha(emoji, botao);
+            chatVistoOnda[emoji] = (chatVistoOnda[emoji] || 0) + 1;   // a própria reação não anima de novo
+            const contador = botao.querySelector('small');
+            if (contador && /^\d+$/.test(contador.textContent)) contador.textContent = Number(contador.textContent) + 1;
+            fetch('/api/chat/reacao', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ emoji }) }).catch(() => {});
+        }
+        async function enviarChat() {
+            const apelido = $('chat-apelido').value.trim(), texto = $('chat-texto').value.trim();
+            if (!texto) return;
+            const botao = $('chat-enviar'); botao.disabled = true; $('chat-erro').textContent = '';
+            try {
+                const r = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ apelido, texto }) });
+                const d = await r.json().catch(() => ({}));
+                if (r.ok && d.ok) {
+                    try { localStorage.setItem('chat_apelido', apelido); } catch { /* sem armazenamento */ }
+                    chatMinhas.add(d.msg.id);
+                    $('chat-texto').value = '';
+                    clearTimeout(chatTimer); atualizarChat();
+                } else {
+                    $('chat-erro').textContent = d.erro || 'Não foi possível enviar agora.';
+                }
+            } catch {
+                $('chat-erro').textContent = 'Sem conexão. Tente de novo em instantes.';
+            } finally {
+                botao.disabled = false; $('chat-texto').focus();
+            }
+        }
+        async function denunciarChat(id, div) {
+            if (!confirm('Denunciar esta mensagem para a moderação?')) return;
+            try { await fetch('/api/chat/denunciar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) }); } catch { /* ignora */ }
+            div.style.opacity = 0.4;
+            div.querySelector('.chat-denunciar').remove();
+        }
+        chatTimer = setTimeout(atualizarChat, 3000);   // marca o ponto de partida logo depois de carregar
 
         // ===================== ANUNCIE AQUI =====================
         document.querySelectorAll('.slot-anuncio').forEach(slot => {

@@ -110,7 +110,7 @@ Proteções: consentimento obrigatório (LGPD), campo invisível contra robôs e
 
 ## Espaços publicitários
 
-Quatro espaços: **topo** (970×90), **abertura** (popup 600×500, no máximo 1x a cada 12h por pessoa), **laterais**
+Cinco espaços: **topo** (970×90), **abertura** (popup 600×500, no máximo 1x a cada 12h por pessoa), **popup a cada 10 min** (600×500, só com anúncio vendido, aba visível e nada aberto na tela), **laterais**
 (160×600, só em telas a partir de 1500px) e **rodapé** (970×90). Espaço vazio mostra o convite "Anuncie aqui".
 
 Para subir, pausar ou remover anúncios, sem deploy: `/admin/publicidade?chave=SUA_SENHA`.
@@ -122,6 +122,13 @@ anúncio aparece na tela; cliques passam por `/pub/clique/<id>`. Os números sã
 Edite pelo navegador, sem deploy: `/admin/stories?chave=SUA_SENHA`. Criar, editar (com versão opcional em inglês),
 reordenar, pausar, apagar e escolher em qual eleição aparecem. Ficam no Upstash; na primeira vez a página importa
 `static/stories.json`, que continua como reserva (botão "Restaurar stories do arquivo original").
+
+## Chat ao vivo
+
+Botão "💬 Chat ao vivo" no canto da tela, com reações (onda de emojis). Proteções: apelido obrigatório, 200 caracteres,
+modo lento (padrão 10s), sem links, filtro de palavras, 3 denúncias escondem a mensagem até revisão.
+Moderação em `/admin/chat?chave=SUA_SENHA`: apagar, liberar, bloquear autor, pausar o chat, modo lento e palavras proibidas.
+Guarda as últimas 200 mensagens no Upstash.
 
 ## Rodar localmente
 
