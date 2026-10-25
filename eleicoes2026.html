@@ -197,6 +197,11 @@
         .story-toque.esq { left: 0; } .story-toque.dir { right: 0; }
         @media (max-width: 500px) { .story-tela { border-radius: 0; height: 100dvh; } }
 
+        /* Idioma */
+        .idioma { display: inline-flex; background: var(--borda); border-radius: 8px; padding: 2px; margin-left: 10px; vertical-align: middle; }
+        .idioma button { border: none; background: transparent; font-size: 12px; font-weight: 700; padding: 4px 8px; border-radius: 6px; cursor: pointer; color: #4b4d4e; }
+        .idioma button.active { background: #fff; color: var(--forte); box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+
         /* Anuncie aqui */
         .banner-anuncio { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; background: #fff;
                           border: 2px dashed #ced0d4; border-radius: 10px; padding: 12px 16px; margin-bottom: 15px; }
@@ -241,13 +246,248 @@
             .sidebar-regioes { width: 100%; max-height: none; }
         }
     </style>
+    <script>
+        // ===================== IDIOMA (PT / EN) =====================
+        // Navegador em português -> português; qualquer outro idioma -> inglês.
+        // A escolha manual (botões PT/EN) fica salva; ?lang=en ou ?lang=pt na URL também vale.
+        // Em inglês, um observador traduz cada texto assim que ele aparece na página (inclusive os criados pelo JavaScript)
+        // e converte os números para o padrão americano (48,20% -> 48.20%; 1.234.567 -> 1,234,567).
+        const IDIOMA = (() => {
+            const daUrl = new URLSearchParams(location.search).get('lang');
+            if (daUrl === 'pt' || daUrl === 'en') return daUrl;
+            try { const salvo = localStorage.getItem('idioma'); if (salvo === 'pt' || salvo === 'en') return salvo; } catch { /* sem armazenamento */ }
+            const nav = (navigator.languages && navigator.languages[0]) || navigator.language || 'pt';
+            return nav.toLowerCase().startsWith('pt') ? 'pt' : 'en';
+        })();
+        document.documentElement.lang = IDIOMA === 'en' ? 'en' : 'pt-BR';
+
+        function trocarIdioma(novo) {
+            try { localStorage.setItem('idioma', novo); } catch { /* sem armazenamento */ }
+            const url = new URL(location.href);
+            url.searchParams.set('lang', novo);
+            location.href = url.toString();
+        }
+
+        const I18N_EXATOS = {
+            // abas, cabeçalho e barras
+            'Design por': 'Design by', 'em 04Out2026': 'on Oct 4, 2026', 'Seções do site': 'Site sections',
+            '🗳️ Apuração': '🗳️ Count', '📰 Análises': '📰 Analysis', '📈 Evolução da apuração': '📈 Count over time', '👥 Acessos ao site': '👥 Site traffic',
+            'Eleição': 'Election', 'Turno': 'Round', 'Status da Apuração (Brasil)': 'Count status (Brazil)', 'das urnas': 'of ballots',
+            'Aguardando...': 'Waiting...', 'Aguardando conexão com o servidor...': 'Connecting to the server...', 'Carregando resultados...': 'Loading results...',
+            'Carregando...': 'Loading...', 'Carregando regiões...': 'Loading regions...', 'Resultado final': 'Final result',
+            'Última atualização do servidor:': 'Last server update:', '(Próxima leitura em': '(Next update in',
+            'Aguardando a primeira leitura do TSE': 'Waiting for the first TSE update', '(Falha na última leitura — nova tentativa em': '(Last update failed — retrying in',
+            'divulgação oficial do TSE': 'official TSE results', 'Portal de Dados Abertos do TSE': 'TSE Open Data Portal',
+            '🔍 Pesquisar Votação Municipal:': '🔍 Search results by city:', '🔍 Pesquisar': '🔍 Search', 'Estado': 'State', 'Cidade': 'City', 'UF...': 'State...',
+            'Selecione a UF primeiro...': 'Choose a state first...', 'Nenhuma cidade encontrada para esta eleição.': 'No cities found for this election.',
+            'Erro ao carregar cidades.': 'Could not load cities.', 'Por favor, selecione a UF e digite o nome de uma cidade.': 'Please choose a state and type a city name.',
+            '🇧🇷 Todas as Regiões': '🇧🇷 All regions', 'Filtrar por região': 'Filter by region', 'Liderança': 'Leading', 'Heatmap': 'Heatmap',
+            'Geográfico': 'Geographic', 'Proporcional': 'Proportional', '🇧🇷 Brasil': '🇧🇷 Brazil', '🌎 Mundo': '🌎 World',
+            'Resultado por Região': 'Results by region', 'Municípios liderados por Região': 'Municipalities led, by region', 'Exterior por continente': 'Abroad by continent',
+            'Sudeste': 'Southeast', 'Sul': 'South', 'Nordeste': 'Northeast', 'Centro-Oeste': 'Center-West', 'Norte': 'North',
+            'Aguardando dados...': 'Waiting for data...', 'Aguardando dados': 'Waiting for data', 'Urnas Apuradas': 'Ballots counted', 'Partido que lidera': 'Leading party',
+            '← Voltar ao Brasil': '← Back to Brazil', 'Fechar painel': 'Close panel', 'Fechar': 'Close', '🏛️ Outras Votações': '🏛️ Other races',
+            'Selecione um estado no mapa ou pesquise uma cidade acima para ver a apuração completa.': 'Pick a state on the map or search for a city above to see full results.',
+            'Dados ainda não disponibilizados para este local.': 'No data available for this place yet.', 'Sem dados até o momento.': 'No data yet.',
+            'Sem votos apurados ainda.': 'No votes counted yet.', 'Sem dados.': 'No data.',
+            '👉 Clique para ver os municípios e os demais cargos': '👉 Click to see municipalities and other races', '👉 Clique para ver todos os cargos': '👉 Click to see all races',
+            '👉 Clique para ver o resultado': '👉 Click to see the result',
+            'Mapa por município disponível ao fim da apuração. Para ver uma cidade agora, use a busca acima.': 'The map by municipality will be available when the count ends. To see a city now, use the search above.',
+            'Apuração encerrada. O mapa por município será publicado em breve; use a busca acima.': 'Count finished. The map by municipality will be published soon; use the search above.',
+            'Ainda não há resultados por município para esta eleição.': 'There are no results by municipality for this election yet.',
+            'Erro ao carregar os municípios. Tente clicar no estado de novo.': 'Could not load municipalities. Try clicking the state again.',
+            'Sem resultados deste município para a eleição selecionada.': 'No results for this municipality in the selected election.',
+            'Erro ao carregar dados da cidade.': 'Could not load city data.', 'Erro ao carregar apuração do estado.': 'Could not load state results.',
+            '🔄 Consultando apuração de Governadores, Senadores e Deputados no TSE...': '🔄 Loading governor, senator and deputy results from the TSE...',
+            '🔄 Consultando prefeituras do estado...': "🔄 Loading the state's mayoral results...",
+            'Não foi possível carregar o mapa dos estados. Recarregue a página.': 'Could not load the state map. Please reload the page.',
+            'Use o botão': 'Use the', 'Brasil': 'Brazil', 'para ver a apuração nacional.': 'button to see the national count.',
+            'Sem seções de votação brasileiras.': 'No Brazilian polling stations.',
+            // cargos
+            '🗳️ Presidente': '🗳️ President', '🏢 Governador': '🏢 Governor', '🗳️ Senador': '🗳️ Senator', '💼 Deputado Federal': '💼 Federal Deputy',
+            '📜 Deputado Estadual': '📜 State Deputy', '📜 Deputado Distrital': '📜 District Deputy', '🏙️ Prefeito': '🏙️ Mayor',
+            '🪑 Vereador (mais votados)': '🪑 City council (most voted)', '🏛️ Municípios liderados por partido': '🏛️ Municipalities led by party',
+            'Presidente': 'President', 'Governador': 'Governor', 'Senador': 'Senator',
+            // descrições da eleição
+            'Presidente, governadores, senadores e deputados': 'President, governors, senators and deputies', 'Presidente e governadores': 'President and governors',
+            'Prefeitos e vereadores': 'Mayors and city councilors', 'Prefeitos (cidades com 2º turno)': 'Mayors (cities with a runoff)', 'ao vivo': 'live',
+            'Não houve este turno': 'There was no such round', 'Dados ainda não gerados': 'Data not generated yet',
+            // aviso das 17h
+            'A totalização oficial do TSE começa às 17h (horário de Brasília).': "The TSE's official count starts at 5 p.m. (Brasília time).",
+            'Os números do exterior que circulam antes disso vêm de boletins de urna de seções já encerradas e ainda não são o resultado oficial. Esta página se atualiza sozinha quando os primeiros dados chegarem.':
+                'Numbers from abroad circulating before then come from individual polling-station reports and are not the official result yet. This page updates by itself when the first data arrives.',
+            // evolução
+            'Brasil ou estado': 'Brazil or state', '🇧🇷🌎 Total (Brasil + exterior)': '🇧🇷🌎 Total (Brazil + abroad)', '🇧🇷 Só no Brasil': '🇧🇷 Brazil only', '🌎 Exterior': '🌎 Abroad',
+            'Total (Brasil + exterior)': 'Total (Brazil + abroad)', 'Só no Brasil': 'Brazil only', 'Exterior': 'Abroad',
+            'Disputa ao longo da apuração': 'The race throughout the count', '% dos votos válidos de cada candidato, um ponto a cada 5 minutos': "Each candidate's share of valid votes, one point every 5 minutes",
+            'Urnas apuradas': 'Ballots counted', '% das seções já totalizadas pelo TSE em cada momento': '% of polling stations already tallied by the TSE at each moment',
+            'Os pontos são gravados a cada 5 minutos a partir da divulgação oficial do TSE, enquanto a apuração acontece. No começo da noite a vantagem costuma oscilar bastante, porque as urnas de cada região chegam em ritmos diferentes.':
+                'Points are recorded every 5 minutes from official TSE results while the count is under way. Early in the evening the lead tends to swing a lot, because ballots from each region arrive at different paces.',
+            'A evolução é registrada enquanto a apuração acontece ao vivo,': 'The race over time is recorded while the count happens live,',
+            'com o coletor ligado (a partir do 2º turno de 2026).': 'with the collector running (from the 2026 runoff on).',
+            'Evolução da disputa por candidato': 'Race over time by candidate', 'Não foi possível carregar a evolução agora. Tentando de novo em instantes.': 'Could not load the race over time. Retrying shortly.',
+            'registros': 'records', 'último às': 'last at',
+            // acessos
+            'Acessando agora': 'Online now', 'pessoas com o site aberto neste momento': 'people with the site open right now', 'Visitantes únicos': 'Unique visitors',
+            'Maior pico simultâneo': 'Highest simultaneous peak', 'Período dos gráficos': 'Chart period', '24 horas': '24 hours', '7 dias': '7 days', 'Tudo': 'All',
+            'Pessoas acessando ao mesmo tempo': 'People online at the same time', 'Pico em cada intervalo de tempo': 'Peak in each time interval',
+            'Visitantes únicos acumulados': 'Cumulative unique visitors', 'Total de pessoas diferentes que já visitaram o site': 'Total number of different people who have visited the site',
+            'Como contamos:': 'How we count:', 'contagem começando agora': 'count starting now', 'pessoas acessando agora': 'people online now',
+            'enquanto a página está aberta e visível, ela avisa o servidor uma vez por minuto. "Acessando agora" são as conexões diferentes (por IP) que deram sinal nos últimos 2,5 minutos. O IP nunca é guardado nem exibido: ele vira um código anônimo, usado só para saber se a visita é de alguém novo. Por isso, pessoas na mesma rede (mesma casa ou empresa) contam como um visitante só. Robôs que não abrem a página não são contados.':
+                'while the page is open and visible, it pings the server once a minute. "Online now" counts the different connections (by IP) that pinged in the last 2.5 minutes. IPs are never stored or shown: each becomes an anonymous code, used only to tell whether a visit is new. So people on the same network (same home or office) count as a single visitor. Bots that do not open the page are not counted.',
+            'Coletando os primeiros dados.': 'Collecting the first data.', 'O gráfico aparece em alguns minutos.': 'The chart will appear in a few minutes.',
+            'Não foi possível carregar os acessos agora. Tentando de novo em instantes.': 'Could not load site traffic. Retrying shortly.',
+            'acessando ao mesmo tempo': 'online at the same time', 'visitantes únicos': 'unique visitors', '% das urnas apuradas': '% of ballots counted', 'Atualizado às': 'Updated at',
+            // análises / stories
+            '📰 Análises do 2º turno': '📰 Runoff analysis', 'Análises do 2º turno': 'Runoff analysis', 'Análises do 2º turno – Eleições em tempo real': 'Runoff analysis – Brazil elections live',
+            '▶ Ver como stories': '▶ View as stories', 'Stories': 'Stories', 'Ler na fonte ↗': 'Read the source ↗', 'Ver no site →': 'See it on this site →',
+            'análises': 'analyses', 'atualizado em': 'updated on',
+            // mundo
+            '🌎 Exterior (total)': '🌎 Abroad (total)', 'América do Norte e Central': 'North & Central America', 'América do Sul': 'South America', 'Europa': 'Europe',
+            'África': 'Africa', 'Ásia e Oriente Médio': 'Asia & Middle East', 'Oceania': 'Oceania', 'Outros': 'Other', 'Outros locais': 'Other places',
+            // anuncie aqui
+            'Sua marca aqui!': 'Your brand here!', 'Quer aparecer para quem acompanha a apuração por este site?': 'Want to reach the people following the count on this site?',
+            'Conte quem você é e quanto pretende investir que eu entro em contato.': "Tell me who you are and how much you'd like to invest, and I'll get in touch.",
+            'Quero anunciar': 'Advertise here', '📣 Anuncie aqui': '📣 Advertise here', 'Preencha e eu entro em contato para combinar formato, período e valores.': "Fill this in and I'll contact you to agree on format, dates and pricing.",
+            'Seu nome': 'Your name', 'Sua marca ou empresa': 'Your brand or company', 'E-mail ou WhatsApp (com DDD)': 'E-mail or WhatsApp (with country code)',
+            'voce@empresa.com ou (11) 91234-5678': 'you@company.com or +1 555 123 4567', 'Quanto pretende investir': 'How much would you like to invest',
+            'Escolha uma faixa...': 'Choose a range...', 'Até R$ 500': 'Up to R$ 500', 'R$ 500 a R$ 2.000': 'R$ 500 to R$ 2,000', 'R$ 2.000 a R$ 5.000': 'R$ 2,000 to R$ 5,000',
+            'Acima de R$ 5.000': 'Over R$ 5,000', 'Prefiro conversar': "I'd rather talk", 'Mensagem (opcional)': 'Message (optional)',
+            'Ex.: quero aparecer na noite da apuração': 'E.g.: I want to appear on counting night', 'Não preencha': 'Do not fill in',
+            'Autorizo o contato sobre publicidade neste site. Meus dados serão usados só para isso e posso pedir a exclusão quando quiser.':
+                'I agree to be contacted about advertising on this site. My data will be used only for that, and I can ask for it to be deleted at any time.',
+            'Cancelar': 'Cancel', 'Enviar': 'Send', 'Enviando...': 'Sending...', '✅ Recebido!': '✅ Received!',
+            'Obrigado pelo interesse. Vou entrar em contato em breve pelo contato que você informou.': "Thanks for your interest. I'll get in touch soon using the contact you provided.",
+            'Informe seu nome.': 'Please enter your name.', 'Informe sua marca ou empresa.': 'Please enter your brand or company.',
+            'Informe um e-mail ou um telefone com DDD.': 'Please enter an e-mail or a phone number with area code.', 'Escolha uma faixa de investimento.': 'Please choose an investment range.',
+            'É preciso autorizar o contato.': 'You need to agree to be contacted.', 'Recebemos muitos envios agora. Tente de novo mais tarde.': 'We received too many submissions. Please try again later.',
+            'Não foi possível enviar agora. Tente de novo em instantes.': 'Could not send right now. Please try again shortly.', 'Não foi possível enviar agora.': 'Could not send right now.',
+            'Sem conexão. Tente de novo em instantes.': 'No connection. Please try again shortly.'
+        };
+
+        const ordinalEN = n => n + ((n % 100 >= 11 && n % 100 <= 13) ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] || 'th'));
+        const trEx = s => I18N_EXATOS[s] ?? s;
+        let I18N_PAISES = {};   // nome do país em português -> inglês (carregado de static/exterior.json)
+
+        // Frases com partes variáveis
+        const I18N_PADROES = [
+            [/^Apuração Presidencial em Tempo Real – (.+)$/, (m, t) => `Live presidential count – ${t}`],
+            [/^Resultado Presidencial (\d+) – (.+)$/, (m, a, t) => `Presidential result ${a} – ${t}`],
+            [/^Eleições Municipais (\d+) – Prefeituras \((.+)\)$/, (m, a, t) => `Municipal elections ${a} – Mayors (${t})`],
+            [/^Evolução da apuração – Eleições em tempo real$/, () => 'Count over time – Brazil elections live'],
+            [/^Evolução da apuração – (.+)$/, (m, r) => `Count over time – ${r}`],
+            [/^Acessos ao site em tempo real$/, () => 'Live site traffic'],
+            [/^Acessos ao site – Eleições em tempo real$/, () => 'Site traffic – Brazil elections live'],
+            [/^Disputa ao longo da apuração – (.+)$/, (m, x) => `The race throughout the count – ${trEx(x)}`],
+            [/^(\d+), (.+): sem registros para (.+)\.$/, (m, a, t, x) => `${a}, ${t}: no records for ${trEx(x)}.`],
+            [/^Eleição de (.+)$/, (m, d) => `Election on ${d}`],
+            [/^Previsto para (.+)$/, (m, d) => `Scheduled for ${d}`],
+            [/^Digite para buscar entre (\d+) cidades de (\w+)\.\.\.$/, (m, n, uf) => `Type to search ${n} cities in ${uf}...`],
+            [/^Carregando cidades de (\w+)\.\.\.$/, (m, uf) => `Loading cities in ${uf}...`],
+            [/^Carregando os municípios de (\w+)…$/, (m, uf) => `Loading municipalities in ${uf}…`],
+            [/^A cidade "(.+)" não foi encontrada no estado de (\w+)\. Escolha uma opção da lista sugerida\.$/, (m, c, uf) => `"${c}" was not found in ${uf}. Please pick one of the suggestions.`],
+            [/^🏙️ Apuração Completa em (.+)$/, (m, x) => `🏙️ Full results in ${x}`],
+            [/^🔄 Consultando votação em (.+)\.\.\.$/, (m, x) => `🔄 Loading results for ${x}...`],
+            [/^🏛️ Apuração de Outros Cargos - (.+)$/, (m, x) => `🏛️ Other races - ${x}`],
+            [/^🏛️ Governador - (.+)$/, (m, x) => `🏛️ Governor - ${x}`],
+            [/^🏛️ Prefeituras - (.+)$/, (m, x) => `🏛️ Mayors - ${x}`],
+            [/^🌎 Votação no exterior – (.+)$/, (m, x) => `🌎 Voting abroad – ${I18N_PAISES[x] || x}`],
+            [/^🗺️ Por zona eleitoral \((\d+) zonas\)$/, (m, n) => `🗺️ By electoral zone (${n} zones)`],
+            [/^🏙️ Por cidade \((\d+) cidades\)$/, (m, n) => `🏙️ By city (${n} cities)`],
+            [/^Zona (\d+)$/, (m, n) => `Zone ${n}`],
+            [/^📊 Regiões \((Visível|Oculto)\)$/, (m, v) => `📊 Regions (${v === 'Visível' ? 'shown' : 'hidden'})`],
+            [/^📍 (.+)$/, (m, x) => `📍 ${trEx(x)}`],
+            [/^👉 Clique para ver as (\d+) cidades$/, (m, n) => `👉 Click to see the ${n} cities`],
+            [/^\(fonte: (.+)\)$/, (m, x) => `(source: ${trEx(x)})`],
+            [/^Fonte: (.+)$/, (m, x) => `Source: ${({ 'TSE (dados deste site)': "TSE (this site's data)", 'Eleições em tempo real': 'this site' })[x] || x}`],
+            [/^Gráfico: (.+)$/, (m, x) => `Chart: ${trEx(x)}`],
+            [/^\(coleta a cada 10 minutos, movimento normal\)$/, () => '(sampled every 10 minutes, normal traffic)'],
+            [/^\(coleta minuto a minuto, movimento alto: (\d+)\+ pessoas\)$/, (m, n) => `(sampled every minute, high traffic: ${n}+ people)`],
+            [/^desde (.+)$/, (m, d) => `since ${d}`],
+            [/^em (\d{2}\/\d{2}.*)$/, (m, d) => `on ${d}`],
+            [/^atualizado em (.+)$/, (m, d) => `updated on ${d}`],
+            [/^(\d+)º Lugar Geral$/, (m, n) => `${ordinalEN(+n)} place overall`],
+            [/^(\d+)º Partido$/, (m, n) => `${ordinalEN(+n)} party`],
+            [/^(\d+)º (Turno|turno)$/, (m, n, t) => `${ordinalEN(+n)} ${t === 'Turno' ? 'Round' : 'round'}`],
+            [/^(.+) – (Gerais|Municipais)( \(sem dados\))?$/, (m, a, t, s) => `${a} – ${t === 'Gerais' ? 'General' : 'Municipal'}${s ? ' (no data)' : ''}`],
+        ];
+
+        // Palavras soltas dentro de frases com números (ex.: "1.234 votos", "12 países")
+        const I18N_PALAVRAS = [
+            [/(\d+)º/g, (m, n) => ordinalEN(+n)],
+            [/votos apurados \(pessoas\)/g, 'votes counted (people)'], [/votos \(pessoas\)/g, 'votes (people)'], [/\bvotos\b/g, 'votes'],
+            [/municípios com resultado/g, 'municipalities reporting'], [/\bmunicípios\b/g, 'municipalities'], [/\bpaíses\b/g, 'countries'],
+            [/cidades concluídas/g, 'cities fully counted'], [/\bcidades\b/g, 'cities'], [/\bzonas\b/g, 'zones'],
+            [/\bapurado\b/g, 'counted'], [/\beleitores\b/g, 'voters'], [/Urnas Apuradas/g, 'Ballots counted'], [/\bturno\b/g, 'round'], [/\bTurno\b/g, 'Round'],
+        ];
+
+        function numerosEN(s) {
+            return s.replace(/(\d)\.(?=\d{3}(?!\d))/g, '$1,')      // milhar: 1.234.567 -> 1,234,567
+                    .replace(/(\d),(\d{1,2})(?!\d)/g, '$1.$2');     // decimal: 48,20 -> 48.20
+        }
+
+        function traduzirTrecho(nucleo) {
+            if (I18N_EXATOS[nucleo] !== undefined) return I18N_EXATOS[nucleo];
+            if (I18N_PAISES[nucleo]) return I18N_PAISES[nucleo];
+            for (const [re, fn] of I18N_PADROES) if (re.test(nucleo)) return nucleo.replace(re, fn);
+            if (nucleo.includes(' · ')) return nucleo.split(' · ').map(traduzirTrecho).join(' · ');
+            let saida = nucleo;
+            for (const [re, sub] of I18N_PALAVRAS) saida = saida.replace(re, sub);
+            return saida;
+        }
+
+        function traduzir(texto) {
+            if (IDIOMA !== 'en' || !texto || !/[A-Za-zÀ-ú0-9]/.test(texto)) return texto;
+            const nucleo = texto.replace(/\s+/g, ' ').trim();
+            const traduzido = numerosEN(traduzirTrecho(nucleo));
+            if (traduzido === nucleo) return texto;
+            const ini = texto.match(/^\s*/)[0], fim = texto.match(/\s*$/)[0];
+            return ini + traduzido + fim;
+        }
+
+        if (IDIOMA === 'en') {
+            const IGNORAR = new Set(['SCRIPT', 'STYLE', 'TEXTAREA']);
+            const ATRIBUTOS = ['placeholder', 'title', 'aria-label'];
+            const traduzirNo = no => {
+                if (no.nodeType === 3) {
+                    const pai = no.parentElement;
+                    if (!pai || IGNORAR.has(pai.tagName) || pai.closest('[translate="no"]')) return;
+                    const novo = traduzir(no.data);
+                    if (novo !== no.data) no.data = novo;
+                } else if (no.nodeType === 1 && !IGNORAR.has(no.tagName)) {
+                    ATRIBUTOS.forEach(a => { const v = no.getAttribute(a); if (v) { const t = traduzir(v); if (t !== v) no.setAttribute(a, t); } });
+                    const w = document.createTreeWalker(no, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
+                    let n; while ((n = w.nextNode())) {
+                        if (n.nodeType === 3) traduzirNo(n);
+                        else ATRIBUTOS.forEach(a => { const v = n.getAttribute(a); if (v) { const t = traduzir(v); if (t !== v) n.setAttribute(a, t); } });
+                    }
+                }
+            };
+            new MutationObserver(mudancas => {
+                for (const m of mudancas) {
+                    if (m.type === 'characterData') traduzirNo(m.target);
+                    else if (m.type === 'attributes') traduzirNo(m.target.nodeType === 1 ? m.target : m.target);
+                    else m.addedNodes.forEach(traduzirNo);
+                }
+            }).observe(document.documentElement, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['placeholder', 'title', 'aria-label'] });
+            const alertaOriginal = window.alert.bind(window);
+            window.alert = msg => alertaOriginal(traduzir(String(msg)));
+            fetch('/static/exterior.json').then(r => r.json()).then(t => {
+                Object.values(t.paises || {}).forEach(p => { if (p.nome_en) I18N_PAISES[p.nome] = p.nome_en; });
+            }).catch(() => {});
+        }
+    </script>
 </head>
 <body>
 
     <div class="header-top">
         <h2 id="titulo-pagina">Apuração Presidencial em Tempo Real</h2>
         <div class="credits-text">
-            Design por <a href="https://www.linkedin.com/in/paulo-hartmann-sales" target="_blank" rel="noopener noreferrer">Paulo Henrique Hartmann Sales</a> em 04Out2026
+            Design por <a href="https://www.linkedin.com/in/paulo-hartmann-sales" target="_blank" rel="noopener noreferrer" translate="no">Paulo Henrique Hartmann Sales</a> em 04Out2026
+            <span class="idioma" role="group" aria-label="Idioma / Language" translate="no">
+                <button id="btn-lang-pt" onclick="trocarIdioma('pt')" title="Português">🇧🇷 PT</button>
+                <button id="btn-lang-en" onclick="trocarIdioma('en')" title="English">🇺🇸 EN</button>
+            </span>
         </div>
     </div>
 
@@ -399,8 +639,8 @@
                 <label for="an-marca">Sua marca ou empresa</label><input id="an-marca" maxlength="80" autocomplete="organization">
                 <label for="an-contato">E-mail ou WhatsApp (com DDD)</label><input id="an-contato" maxlength="120" autocomplete="email" placeholder="voce@empresa.com ou (11) 91234-5678">
                 <label for="an-invest">Quanto pretende investir</label>
-                <select id="an-invest"><option value="">Escolha uma faixa...</option><option>Até R$ 500</option><option>R$ 500 a R$ 2.000</option>
-                    <option>R$ 2.000 a R$ 5.000</option><option>Acima de R$ 5.000</option><option>Prefiro conversar</option></select>
+                <select id="an-invest"><option value="">Escolha uma faixa...</option><option value="Até R$ 500">Até R$ 500</option><option value="R$ 500 a R$ 2.000">R$ 500 a R$ 2.000</option>
+                    <option value="R$ 2.000 a R$ 5.000">R$ 2.000 a R$ 5.000</option><option value="Acima de R$ 5.000">Acima de R$ 5.000</option><option value="Prefiro conversar">Prefiro conversar</option></select>
                 <label for="an-msg">Mensagem (opcional)</label><textarea id="an-msg" maxlength="500" placeholder="Ex.: quero aparecer na noite da apuração"></textarea>
                 <div class="oculto" aria-hidden="true"><label for="an-site">Não preencha</label><input id="an-site" tabindex="-1" autocomplete="off"></div>
                 <label class="consent"><input type="checkbox" id="an-ok"> Autorizo o contato sobre publicidade neste site. Meus dados serão usados só para isso e posso pedir a exclusão quando quiser.</label>
@@ -732,7 +972,8 @@
             if (!t) return;
 
             eleicao = { ano: info.ano, turno: t.turno, tipo: info.tipo, ao_vivo: !!t.ao_vivo, fonte: t.fonte || (t.ao_vivo ? 'ao_vivo' : 'historico') };
-            history.replaceState(null, '', `?ano=${eleicao.ano}&turno=${eleicao.turno}${location.hash}`);
+            const paramLang = new URLSearchParams(location.search).get('lang');
+            history.replaceState(null, '', `?ano=${eleicao.ano}&turno=${eleicao.turno}${paramLang ? `&lang=${paramLang}` : ''}${location.hash}`);
 
             // Zera tudo o que pertence à eleição anterior (mas mantém o estado aberto, se houver)
             const estadoAberto = ufAtiva;
@@ -1444,6 +1685,8 @@
         const DURACAO_STORY = 8000;
         const storiesVistos = new Set();
 
+        const campoIdioma = (obj, campo) => (IDIOMA === 'en' && obj[campo + '_en']) || obj[campo];
+
         async function carregarStories() {
             try {
                 if (!pacoteStories) pacoteStories = await getJSON('/static/stories.json');
@@ -1451,19 +1694,19 @@
             const p = pacoteStories;
             const daEleicao = p.eleicao && p.eleicao.ano === eleicao.ano && p.eleicao.turno === eleicao.turno;
             $('stories-apuracao').hidden = !daEleicao || !p.stories.length;
-            $('stories-atualizado').textContent = p.atualizado ? `atualizado em ${p.atualizado}` : '';
+            $('stories-atualizado').textContent = p.atualizado ? `atualizado em ${campoIdioma(p, 'atualizado')}` : '';
             $('stories-faixa').innerHTML = p.stories.map((st, i) => `
-                <button class="story-bolha${storiesVistos.has(st.id) ? ' visto' : ''}" onclick="abrirStories(${i})" aria-label="${esc(st.titulo)}">
+                <button class="story-bolha${storiesVistos.has(st.id) ? ' visto' : ''}" onclick="abrirStories(${i})" aria-label="${esc(campoIdioma(st, 'titulo'))}">
                     <span class="story-anel"><span class="story-circulo" style="background:${st.cor[0]}">${st.emoji}</span></span>
-                    <span class="story-rotulo">${esc(st.categoria)}</span>
+                    <span class="story-rotulo">${esc(campoIdioma(st, 'categoria'))}</span>
                 </button>`).join('');
-            $('an-status').innerHTML = `<b>${p.stories.length}</b> análises · atualizado em <b>${esc(p.atualizado || '')}</b>`;
-            $('an-aviso').textContent = p.aviso || '';
+            $('an-status').innerHTML = `<b>${p.stories.length}</b> análises · atualizado em <b>${esc(campoIdioma(p, 'atualizado') || '')}</b>`;
+            $('an-aviso').textContent = campoIdioma(p, 'aviso') || '';
             $('story-cards').innerHTML = p.stories.map((st, i) => `
                 <button class="story-card" style="background:linear-gradient(160deg, ${st.cor[0]}, ${st.cor[1]})" onclick="abrirStories(${i})">
-                    <span class="sc-cat">${st.emoji} ${esc(st.categoria)}</span>
-                    <span class="sc-tit">${esc(st.titulo)}</span>
-                    <span class="sc-txt">${esc(st.texto)}</span>
+                    <span class="sc-cat">${st.emoji} ${esc(campoIdioma(st, 'categoria'))}</span>
+                    <span class="sc-tit">${esc(campoIdioma(st, 'titulo'))}</span>
+                    <span class="sc-txt">${esc(campoIdioma(st, 'texto'))}</span>
                     <span class="sc-fonte">Fonte: ${esc(st.fonte)}</span>
                 </button>`).join('');
         }
@@ -1501,10 +1744,10 @@
             const st = lista[i];
             storiesVistos.add(st.id);
             $('story-tela').style.background = `linear-gradient(160deg, ${st.cor[0]}, ${st.cor[1]})`;
-            $('story-cat').textContent = `${st.categoria} · ${i + 1}/${lista.length}`;
+            $('story-cat').textContent = `${campoIdioma(st, 'categoria')} · ${i + 1}/${lista.length}`;
             $('story-emoji').textContent = st.emoji;
-            $('story-titulo').textContent = st.titulo;
-            $('story-texto').textContent = st.texto;
+            $('story-titulo').textContent = campoIdioma(st, 'titulo');
+            $('story-texto').textContent = campoIdioma(st, 'texto');
             $('story-dados').innerHTML = '';
             $('story-fonte').textContent = `Fonte: ${st.fonte}`;
             const link = $('story-link');
@@ -1581,6 +1824,9 @@
                 else if (ev.key === 'ArrowLeft') storyAnterior();
             });
         })();
+
+        // botão do idioma ativo
+        $(`btn-lang-${IDIOMA}`).classList.add('active');
 
         // ===================== ANUNCIE AQUI =====================
         document.querySelectorAll('.slot-anuncio').forEach(slot => {

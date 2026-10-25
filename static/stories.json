@@ -1,5 +1,8 @@
 {
-  "eleicao": {"ano": 2026, "turno": 2},
+  "eleicao": {
+    "ano": 2026,
+    "turno": 2
+  },
   "titulo": "Análises do 2º turno",
   "atualizado": "25/10/2026, 14h30",
   "aviso": "Resumos próprios do site a partir das reportagens indicadas. Toque em \"Ler na fonte\" para a matéria completa.",
@@ -8,102 +11,165 @@
       "id": "hoje",
       "categoria": "Hoje",
       "emoji": "🗳️",
-      "cor": ["#0f766e", "#134e4a"],
+      "cor": [
+        "#0f766e",
+        "#134e4a"
+      ],
       "titulo": "Dia de 2º turno",
       "texto": "A votação vai das 8h às 17h (horário de Brasília). As parciais da totalização começam a sair às 17h, e o TSE não fixa horário para o resultado final: depende do ritmo dos boletins.",
       "fonte": "Exame",
-      "url": "https://exame.com/brasil/que-horas-comeca-a-apuracao-do-2o-turno-neste-domingo/"
+      "url": "https://exame.com/brasil/que-horas-comeca-a-apuracao-do-2o-turno-neste-domingo/",
+      "categoria_en": "Today",
+      "titulo_en": "Runoff day",
+      "texto_en": "Voting runs from 8 a.m. to 5 p.m. (Brasília time). Partial official results start at 5 p.m., and the TSE sets no time for the final result: it depends on how fast polling-station reports come in."
     },
     {
       "id": "pesquisas",
       "categoria": "Pesquisas",
       "emoji": "📊",
-      "cor": ["#4338ca", "#312e81"],
+      "cor": [
+        "#4338ca",
+        "#312e81"
+      ],
       "titulo": "Véspera: empate técnico",
       "texto": "Nos votos válidos, as pesquisas de sábado ficaram dentro da margem de erro:\n\nAtlasIntel: Flávio 50,8% · Lula 49,2%\nDatafolha: Flávio 51% · Lula 49%\nQuaest: Flávio 51% · Lula 49%",
       "fonte": "Gazeta do Povo",
-      "url": "https://www.gazetadopovo.com.br/eleicoes/2026/pesquisa-eleitoral-2026/o-que-dizem-as-pesquisas-para-presidente-na-vespera-do-segundo-turno/"
+      "url": "https://www.gazetadopovo.com.br/eleicoes/2026/pesquisa-eleitoral-2026/o-que-dizem-as-pesquisas-para-presidente-na-vespera-do-segundo-turno/",
+      "categoria_en": "Polls",
+      "titulo_en": "Eve of the vote: statistical tie",
+      "texto_en": "Among valid votes, Saturday's polls were all within the margin of error:\n\nAtlasIntel: Flávio 50.8% · Lula 49.2%\nDatafolha: Flávio 51% · Lula 49%\nQuaest: Flávio 51% · Lula 49%"
     },
     {
       "id": "institutos",
       "categoria": "Pesquisas",
       "emoji": "🔎",
-      "cor": ["#6d28d9", "#4c1d95"],
+      "cor": [
+        "#6d28d9",
+        "#4c1d95"
+      ],
       "titulo": "Vários institutos, mesmo retrato",
       "texto": "Outros levantamentos da véspera também deram empate técnico nos votos válidos:\n\nCNT/MDA: Flávio 50,7% · Lula 49,3%\nFutura: Flávio 50,1% · Lula 49,9%\nNexus/BTG: Flávio 50,5% · Lula 49,5%",
       "fonte": "Gazeta do Povo",
-      "url": "https://www.gazetadopovo.com.br/eleicoes/2026/pesquisa-eleitoral-2026/o-que-dizem-as-pesquisas-para-presidente-na-vespera-do-segundo-turno/"
+      "url": "https://www.gazetadopovo.com.br/eleicoes/2026/pesquisa-eleitoral-2026/o-que-dizem-as-pesquisas-para-presidente-na-vespera-do-segundo-turno/",
+      "categoria_en": "Polls",
+      "titulo_en": "Several pollsters, same picture",
+      "texto_en": "Other polls released on the eve also showed a statistical tie among valid votes:\n\nCNT/MDA: Flávio 50.7% · Lula 49.3%\nFutura: Flávio 50.1% · Lula 49.9%\nNexus/BTG: Flávio 50.5% · Lula 49.5%"
     },
     {
       "id": "primeiro-turno",
       "categoria": "1º turno",
       "emoji": "🔁",
-      "cor": ["#475569", "#1e293b"],
+      "cor": [
+        "#475569",
+        "#1e293b"
+      ],
       "titulo": "Como foi o 1º turno",
       "tipo": "primeiro_turno",
       "texto": "Ninguém passou de 50% dos votos válidos em 4 de outubro, por isso a disputa voltou às urnas hoje.",
       "fonte": "TSE (dados deste site)",
-      "url": "#apuracao"
+      "url": "#apuracao",
+      "categoria_en": "1st round",
+      "titulo_en": "How the 1st round went",
+      "texto_en": "No one got more than 50% of valid votes on October 4, so the race went back to the polls today."
     },
     {
       "id": "governadores",
       "categoria": "Governadores",
       "emoji": "🏛️",
-      "cor": ["#b45309", "#78350f"],
+      "cor": [
+        "#b45309",
+        "#78350f"
+      ],
       "titulo": "6 governos ainda em jogo",
       "texto": "Além de presidente, eleitores de cinco estados e do DF escolhem governador hoje: Acre, Amazonas, Distrito Federal, Espírito Santo, Rio Grande do Norte e Tocantins. Nos demais estados, vota-se só para presidente.",
       "fonte": "Agência Brasil",
-      "url": "https://agenciabrasil.ebc.com.br/radioagencia-nacional/politica/audio/2026-10/eleicoes-cinco-estados-e-o-df-terao-segundo-turno-para-governador"
+      "url": "https://agenciabrasil.ebc.com.br/radioagencia-nacional/politica/audio/2026-10/eleicoes-cinco-estados-e-o-df-terao-segundo-turno-para-governador",
+      "categoria_en": "Governors",
+      "titulo_en": "6 governorships still at stake",
+      "texto_en": "Besides president, voters in five states and the Federal District choose a governor today: Acre, Amazonas, Federal District, Espírito Santo, Rio Grande do Norte and Tocantins. Everywhere else, people vote only for president."
     },
     {
       "id": "governadores-quem",
       "categoria": "Governadores",
       "emoji": "🤝",
-      "cor": ["#a16207", "#713f12"],
+      "cor": [
+        "#a16207",
+        "#713f12"
+      ],
       "titulo": "Quem disputa cada estado",
       "texto": "AC: Alan Rick (Republicanos) × Mailza Assis (PP)\nAM: Omar Aziz (PSD) × Prof.ª Maria do Carmo (PL)\nDF: Celina Leão (PP) × Leandro Grass (PT)\nES: Lorenzo Pazolini (Republicanos) × Ricardo Ferraço (MDB)\nRN: Allyson (União) × Cadu de Lula (PT)\nTO: Prof.ª Dorinha (União) × Vicentinho Júnior (PSDB)",
       "fonte": "Agência Brasil",
-      "url": "https://agenciabrasil.ebc.com.br/radioagencia-nacional/politica/audio/2026-10/eleicoes-cinco-estados-e-o-df-terao-segundo-turno-para-governador"
+      "url": "https://agenciabrasil.ebc.com.br/radioagencia-nacional/politica/audio/2026-10/eleicoes-cinco-estados-e-o-df-terao-segundo-turno-para-governador",
+      "categoria_en": "Governors",
+      "titulo_en": "Who is running in each state",
+      "texto_en": "AC: Alan Rick (Republicanos) × Mailza Assis (PP)\nAM: Omar Aziz (PSD) × Prof. Maria do Carmo (PL)\nDF: Celina Leão (PP) × Leandro Grass (PT)\nES: Lorenzo Pazolini (Republicanos) × Ricardo Ferraço (MDB)\nRN: Allyson (União) × Cadu de Lula (PT)\nTO: Prof. Dorinha (União) × Vicentinho Júnior (PSDB)"
     },
     {
       "id": "exterior",
       "categoria": "Exterior",
       "emoji": "🌎",
-      "cor": ["#0369a1", "#0c4a6e"],
+      "cor": [
+        "#0369a1",
+        "#0c4a6e"
+      ],
       "titulo": "Quase 919 mil votam fora",
       "texto": "Brasileiros no exterior votam em 186 cidades de 134 países, e só para presidente. A votação começou ainda no sábado, às 16h de Brasília, em Wellington, na Nova Zelândia, por causa do fuso.",
       "fonte": "Metrópoles",
-      "url": "https://www.metropoles.com/mundo/votacao-no-exterior-apuracao-2o-turno-flavio-lula"
+      "url": "https://www.metropoles.com/mundo/votacao-no-exterior-apuracao-2o-turno-flavio-lula",
+      "categoria_en": "Abroad",
+      "titulo_en": "Almost 919,000 vote abroad",
+      "texto_en": "Brazilians abroad vote in 186 cities across 134 countries, and only for president. Because of time zones, voting started on Saturday at 4 p.m. Brasília time in Wellington, New Zealand."
     },
     {
       "id": "boletins",
       "categoria": "Exterior",
       "emoji": "🧾",
-      "cor": ["#0e7490", "#164e63"],
+      "cor": [
+        "#0e7490",
+        "#164e63"
+      ],
       "titulo": "Números do exterior já saíram?",
       "texto": "Saíram boletins de urna de seções já encerradas na Ásia e na Oceania, com cada candidato à frente em países diferentes. Eles não são a totalização oficial: a do TSE, incluindo o exterior, começa às 17h.",
       "fonte": "Congresso em Foco",
-      "url": "https://congressoemfoco.com.br/noticia/123603/primeiras-urnas-sao-apuradas-no-exterior-acompanhe-os-resultados"
+      "url": "https://congressoemfoco.com.br/noticia/123603/primeiras-urnas-sao-apuradas-no-exterior-acompanhe-os-resultados",
+      "categoria_en": "Abroad",
+      "titulo_en": "Are there results from abroad yet?",
+      "texto_en": "Reports from polling stations that already closed in Asia and Oceania are out, with each candidate ahead in different countries. They are not the official count: the TSE's count, including abroad, starts at 5 p.m."
     },
     {
       "id": "boletim-na-mao",
       "categoria": "Como conferir",
       "emoji": "📱",
-      "cor": ["#15803d", "#14532d"],
+      "cor": [
+        "#15803d",
+        "#14532d"
+      ],
       "titulo": "Confira a sua urna",
       "texto": "Com o Boletim na Mão, no app e-Título, dá para ler o QR Code do boletim impresso na seção e ver os votos daquela urna. Depois, é só comparar com o resultado divulgado pelo TSE.",
       "fonte": "TSE",
-      "url": "https://www.tse.jus.br/comunicacao/noticias/2026/Outubro/terminada-a-votacao-saiba-como-acompanhar-os-resultados-das-eleicoes"
+      "url": "https://www.tse.jus.br/comunicacao/noticias/2026/Outubro/terminada-a-votacao-saiba-como-acompanhar-os-resultados-das-eleicoes",
+      "categoria_en": "Check it",
+      "titulo_en": "Check your ballot box",
+      "texto_en": "With the \"Boletim na Mão\" feature in the e-Título app, you can scan the QR code on the printed report at your polling station and see that machine's votes. Then compare it with the result published by the TSE."
     },
     {
       "id": "aqui",
       "categoria": "Neste site",
       "emoji": "📍",
-      "cor": ["#334155", "#0f172a"],
+      "cor": [
+        "#334155",
+        "#0f172a"
+      ],
       "titulo": "Acompanhe aqui a partir das 17h",
       "texto": "Brasil, estados e todas as cidades atualizados a cada 5 minutos, o mapa do exterior no botão Mundo e o gráfico da disputa ao longo da noite na aba Evolução.",
       "fonte": "Eleições em tempo real",
-      "url": "#evolucao"
+      "url": "#evolucao",
+      "categoria_en": "On this site",
+      "titulo_en": "Follow it here from 5 p.m.",
+      "texto_en": "Brazil, states and every city updated every 5 minutes, the map of votes abroad under the World button, and a chart of the race throughout the night in the Count over time tab."
     }
-  ]
+  ],
+  "titulo_en": "Runoff analysis",
+  "atualizado_en": "Oct 25, 2026, 2:30 p.m.",
+  "aviso_en": "Summaries written by this site from the linked reports. Tap \"Read the source\" for the full article (in Portuguese)."
 }

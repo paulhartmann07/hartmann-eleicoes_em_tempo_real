@@ -94,6 +94,12 @@ Variáveis de ambiente no Render (Environment):
 O processo precisa ser **único** (os contadores ficam na memória). Start Command no Render:
 `gunicorn --workers 1 --threads 4 servidor_eleicoes2026:app`
 
+## Idiomas (PT / EN)
+
+Navegador em português → português; qualquer outro idioma → inglês. Botões 🇧🇷 PT / 🇺🇸 EN no topo (a escolha fica salva)
+e links diretos com `?lang=en` ou `?lang=pt`. A tradução fica no `<head>` do `eleicoes2026.html` (`I18N_EXATOS`,
+`I18N_PADROES`, `I18N_PALAVRAS`): para mudar um texto em inglês, edite ali. Os stories têm campos `_en` no `static/stories.json`.
+
 ## Anuncie aqui
 
 Banner "Quero anunciar" na apuração e na aba Análises. Cada envio fica guardado (Upstash, ou `dados_anuncios.json`
