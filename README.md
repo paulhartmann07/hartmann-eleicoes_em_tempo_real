@@ -94,6 +94,14 @@ Variáveis de ambiente no Render (Environment):
 O processo precisa ser **único** (os contadores ficam na memória). Start Command no Render:
 `gunicorn --workers 1 --threads 4 servidor_eleicoes2026:app`
 
+## Anuncie aqui
+
+Banner "Quero anunciar" na apuração e na aba Análises. Cada envio fica guardado (Upstash, ou `dados_anuncios.json`
+localmente) e gera um e-mail de aviso pelo Resend. Para ver todos os interessados:
+`/admin/anuncios?chave=SUA_SENHA` (planilha em `/admin/anuncios.csv?chave=...`).
+A senha é `ANUNCIOS_CHAVE` ou, se ela não existir, a `RELATORIO_CHAVE`.
+Proteções: consentimento obrigatório (LGPD), campo invisível contra robôs e no máximo 3 envios por hora por IP.
+
 ## Rodar localmente
 
 ```bash

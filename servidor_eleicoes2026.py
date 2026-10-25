@@ -800,6 +800,10 @@ import acessos  # noqa: E402  (precisa de responder/comprimir definidos acima)
 
 contador_acessos = acessos.iniciar(app, responder, comprimir)
 
+import anuncios  # noqa: E402
+
+anuncios.iniciar(app)
+
 
 @app.route('/api/saude')
 def api_saude():
