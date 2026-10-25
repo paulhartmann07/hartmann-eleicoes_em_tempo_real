@@ -352,10 +352,6 @@ _laco_tse = {'pid': None, 'thread': None, 'volta': 0}
 _lock_laco_tse = threading.Lock()
 
 
-_laco_tse = {'pid': None, 'thread': None, 'volta': 0}
-_lock_laco_tse = threading.Lock()
-
-
 def laco_ao_vivo():
     proxima = {}
     while _laco_tse['pid'] == os.getpid():
