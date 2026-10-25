@@ -1,3 +1,4 @@
+import base64
 import gzip
 import json
 import os
@@ -343,7 +344,12 @@ def eleicoes_ao_vivo_ativas():
     """Turnos ao vivo que ainda precisam ser consultados (os encerrados ficam de fora)."""
     return [(ano, t) for ano, cfg in ELEICOES.items() if cfg.get('ao_vivo')
             for t in cfg['turnos']
-            if fonte(ano, t) == 'ao_vivo' and not cache_ao_vivo(ano, t).get('finalizado')]
+            if fonte(ano, t) == 'ao_vivo' and not coletor.ativo(ano, t)
+            and not cache_ao_vivo(ano, t).get('finalizado')]
+
+
+_laco_tse = {'pid': None, 'thread': None, 'volta': 0}
+_lock_laco_tse = threading.Lock()
 
 
 _laco_tse = {'pid': None, 'thread': None, 'volta': 0}
@@ -454,9 +460,90 @@ def detalhes_ao_vivo(ano, turno, uf, cd_mun=None):
     return {'cargos': res}
 
 
+# ===================== DADOS DO COLETOR (Upstash) =====================
+# O coletor_ao_vivo.py grava a cada 5 min uma "foto" de todos os níveis no Upstash. Enquanto essa foto
+# for recente, o servidor lê dela e NÃO consulta o TSE (nem no ciclo de fundo, nem em cliques).
+COLETOR_VALIDADE = 15 * 60     # foto com mais de 15 min = coletor parado: volta a consultar o TSE direto
+
+
+class LeitorColetor:
+    def __init__(self):
+        from acessos import ArmazenamentoUpstash
+        url, token = os.environ.get('UPSTASH_REDIS_REST_URL'), os.environ.get('UPSTASH_REDIS_REST_TOKEN')
+        self.banco = ArmazenamentoUpstash(url, token) if url and token else None
+        self.estados = {}
+        self.lock = threading.Lock()
+
+    def _estado(self, ano, turno):
+        e = self.estados.setdefault((ano, turno), {'versao': 0, 'checado': 0, 'dados': {}, 'resp': {}})
+        if self.banco and time.time() - e['checado'] > 30:   # no máximo 1 consulta de versão a cada 30s
+            e['checado'] = time.time()
+            try:
+                v = int(self.banco._pipeline([['GET', f'ao_vivo:{ano}:{turno}:versao']])[0] or 0)
+            except Exception as ex:
+                log(f"[COLETOR] erro ao ler versão: {ex}")
+                return e
+            if v != e['versao']:
+                with self.lock:
+                    e.update(versao=v, dados={}, resp={})   # foto nova: descarta o que estava em memória
+        return e
+
+    def _obter(self, ano, turno, nome, comando):
+        e = self._estado(ano, turno)
+        if nome not in e['dados']:
+            try:
+                valor = self.banco._pipeline([comando])[0]
+            except Exception as ex:
+                log(f"[COLETOR] erro ao ler {nome}: {ex}")
+                return None
+            if isinstance(valor, list):
+                e['dados'][nome] = [json.loads(v) for v in valor]
+            else:
+                e['dados'][nome] = json.loads(gzip.decompress(base64.b64decode(valor))) if valor else None
+        return e['dados'][nome]
+
+    def resumo(self, ano, turno):
+        return self._obter(ano, turno, 'resumo', ['GET', f'ao_vivo:{ano}:{turno}:resumo'])
+
+    def uf(self, ano, turno, uf):
+        return self._obter(ano, turno, f'uf:{uf}', ['GET', f'ao_vivo:{ano}:{turno}:uf:{uf}']) or {}
+
+    def historico(self, ano, turno, abr):
+        return self._obter(ano, turno, f'hist:{abr}', ['LRANGE', f'ao_vivo:{ano}:{turno}:hist:{abr}', 0, -1]) or []
+
+    def ativo(self, ano, turno):
+        if not self.banco or ELEICOES.get(ano, {}).get('ao_vivo') is not True:
+            return False
+        e = self._estado(ano, turno)
+        if not e['versao']:
+            return False
+        if time.time() - e['versao'] < COLETOR_VALIDADE:
+            return True
+        r = self.resumo(ano, turno)
+        return bool(r and r.get('finalizado'))    # coletor parou porque terminou: a foto final continua valendo
+
+    def resposta(self, ano, turno, chave, gerar):
+        """Resposta comprimida, refeita só quando chega foto nova do coletor."""
+        e = self._estado(ano, turno)
+        gz = e['resp'].get(chave)
+        if gz is None:
+            gz = comprimir(gerar())
+            e['resp'][chave] = gz
+        return gz
+
+
+coletor = LeitorColetor()
+
+
+def dados_ao_vivo(ano, turno):
+    if coletor.ativo(ano, turno):
+        return coletor.resumo(ano, turno) or {}
+    return cache_ao_vivo(ano, turno)
+
+
 def ttl_detalhes(ano, turno):
     """Durante a apuração o painel expira em 60s; depois do encerramento o resultado não muda mais."""
-    return None if cache_ao_vivo(ano, turno).get('finalizado') else TTL_DETALHES_AO_VIVO
+    return None if dados_ao_vivo(ano, turno).get('finalizado') else TTL_DETALHES_AO_VIVO
 
 
 # ===================== ROTAS =====================
@@ -473,7 +560,7 @@ def api_eleicoes():
         turnos = []
         for t, data_eleicao in sorted(cfg['turnos'].items()):
             f = fonte(ano, t)
-            ao_vivo = f == 'ao_vivo' and not cache_ao_vivo(ano, t).get('finalizado')
+            ao_vivo = f == 'ao_vivo' and not dados_ao_vivo(ano, t).get('finalizado')
             turnos.append({'turno': t, 'data': data_eleicao, 'disponivel': f is not None, 'ao_vivo': ao_vivo, 'fonte': f})
             if f and (padrao is None or (ano, t) > (padrao['ano'], padrao['turno'])):
                 padrao = {'ano': ano, 'turno': t}
@@ -494,6 +581,12 @@ def api_votacao():
                     'brasil': estatico(ano, turno, 'brasil.json', padrao=vazio()),
                     'estados': estatico(ano, turno, 'estados.json', padrao={})}
         return responder(resposta_em_cache(('votacao', ano, turno), gerar), MAX_AGE_HISTORICO)
+    if f == 'ao_vivo' and coletor.ativo(ano, turno):
+        def gerar_coletor():
+            dados = coletor.resumo(ano, turno) or {}
+            extra = {'fonte_descricao': 'divulgação oficial do TSE'} if dados.get('finalizado') else {}
+            return {**base, **dados, **extra, 'mapa_municipal': True}
+        return responder(coletor.resposta(ano, turno, 'votacao', gerar_coletor))
     if f == 'ao_vivo':
         def gerar_ao_vivo():
             dados = cache_ao_vivo(ano, turno)
@@ -524,8 +617,9 @@ def api_mapa(uf):
     if f == 'historico':
         return responder(resposta_arquivo(('mapa', ano, turno, uf), ano, turno, 'mapa', f'{uf}.json', padrao={}),
                          MAX_AGE_HISTORICO)
-    # Ao vivo NÃO há mapa municipal (seriam centenas de consultas ao TSE por clique).
-    # Ele aparece depois que o turno é congelado com congelar_ao_vivo.py.
+    if f == 'ao_vivo' and coletor.ativo(ano, turno) and uf in ESTADOS:
+        return responder(coletor.resposta(ano, turno, ('mapa', uf), lambda: coletor.uf(ano, turno, uf).get('mapa', {})))
+    # Sem o coletor, ao vivo NÃO há mapa municipal (seriam centenas de consultas ao TSE por clique).
     return responder(comprimir({}))
 
 
@@ -536,6 +630,9 @@ def api_detalhes_estado(uf):
     f = fonte(ano, turno)
     if f == 'historico':
         return responder(detalhes_historicos(ano, turno, uf)['estado'], MAX_AGE_HISTORICO)
+    if f == 'ao_vivo' and coletor.ativo(ano, turno):
+        return responder(coletor.resposta(ano, turno, ('det', uf), lambda: {
+            'uf': uf, 'cargos': coletor.uf(ano, turno, uf).get('estado', {}).get('cargos', {})}))
     if f == 'ao_vivo':
         return responder(resposta_em_cache(('det', ano, turno, uf, None),
                                            lambda: {'uf': uf, **detalhes_ao_vivo(ano, turno, uf)}, ttl=ttl_detalhes(ano, turno)))
@@ -551,11 +648,95 @@ def api_detalhes_municipio(uf, cd_mun):
     if f == 'historico':
         gz = detalhes_historicos(ano, turno, uf)['municipios'].get(cd_mun)
         return responder(gz or comprimir(vazio_mun), MAX_AGE_HISTORICO)
+    if f == 'ao_vivo' and coletor.ativo(ano, turno):
+        return responder(coletor.resposta(ano, turno, ('det', uf, cd_mun), lambda: {
+            **vazio_mun, **coletor.uf(ano, turno, uf).get('municipios', {}).get(cd_mun, {})}))
     if f == 'ao_vivo':
         return responder(resposta_em_cache(('det', ano, turno, uf, cd_mun),
                                            lambda: {**vazio_mun, **detalhes_ao_vivo(ano, turno, uf, cd_mun)},
                                            ttl=ttl_detalhes(ano, turno)))
     return responder(comprimir(vazio_mun))
+
+
+# ===================== COLETOR DENTRO DO RENDER (opcional) =====================
+# Com COLETOR_NO_RENDER=1 o próprio servidor roda o coletor_ao_vivo.py a cada 5 min, sem depender de outro computador.
+# COLETOR_COMPLETO=1 inclui zonas e governador por município (pesado para 0,1 CPU: use só em plano pago).
+COLETOR_NO_RENDER = os.environ.get('COLETOR_NO_RENDER') == '1'
+COLETOR_COMPLETO = os.environ.get('COLETOR_COMPLETO') == '1'
+_coletor_interno = {'pid': None, 'thread': None, 'ultimo_ciclo': 0, 'ultimo_erro': None, 'encerrado': False}
+_lock_coletor_interno = threading.Lock()
+
+
+def _alvos_coleta():
+    return [(ano, t) for ano, cfg in ELEICOES.items() if cfg.get('ao_vivo') for t in cfg['turnos']
+            if fonte(ano, t) == 'ao_vivo' and not dados_ao_vivo(ano, t).get('finalizado')]
+
+
+def _laco_coletor_interno():
+    os.environ.setdefault('COLETOR_WORKERS', '8')   # no Render, poucas conexões paralelas para poupar CPU
+    import coletor_ao_vivo as col
+    from acessos import ArmazenamentoUpstash
+    banco = ArmazenamentoUpstash(os.environ['UPSTASH_REDIS_REST_URL'], os.environ['UPSTASH_REDIS_REST_TOKEN'])
+    preparado = {}
+    while _coletor_interno['pid'] == os.getpid():
+        for ano, turno in _alvos_coleta():
+            try:
+                if (ano, turno) not in preparado:
+                    cod = col.descobrir_codigos(ano, turno)
+                    preparado[(ano, turno)] = (cod, col.carregar_municipios(ano, cod), set())
+                cod, muns, gov = preparado[(ano, turno)]
+                if col.ciclo(ano, turno, cod, muns, banco, gov, completo=COLETOR_COMPLETO):
+                    log(f"[COLETOR] {ano} {turno}º turno chegou a 100%: coleta encerrada")
+                    _coletor_interno['encerrado'] = True
+                    return
+                _coletor_interno['ultimo_ciclo'] = time.time()
+            except (Exception, SystemExit) as e:   # carregar_municipios usa sys.exit em falha
+                _coletor_interno['ultimo_erro'] = f"{time.strftime('%d/%m %H:%M')}: {e}"
+                log(f"[COLETOR] erro no ciclo: {e}")
+        time.sleep(max(5, col.INTERVALO - (time.time() % col.INTERVALO)))
+
+
+def garantir_coletor_interno():
+    if not COLETOR_NO_RENDER or _coletor_interno['encerrado'] or not coletor.banco:
+        return
+    t = _coletor_interno['thread']
+    if _coletor_interno['pid'] == os.getpid() and t is not None and t.is_alive():
+        return
+    with _lock_coletor_interno:
+        t = _coletor_interno['thread']
+        if _coletor_interno['pid'] == os.getpid() and t is not None and t.is_alive():
+            return
+        _coletor_interno['pid'] = os.getpid()
+        _coletor_interno['thread'] = threading.Thread(target=_laco_coletor_interno, daemon=True)
+        _coletor_interno['thread'].start()
+        log(f"[COLETOR] coletor interno ligado (pid {os.getpid()}, modo {'completo' if COLETOR_COMPLETO else 'leve'})")
+
+
+app.before_request(garantir_coletor_interno)
+
+
+@app.route('/api/zonas/<uf>/<cd_mun>')
+def api_zonas(uf, cd_mun):
+    """Resultado por zona eleitoral de uma cidade (só cidades com mais de uma zona)."""
+    ano, turno = ler_params()
+    uf, cd_mun = uf.upper(), str(cd_mun).zfill(5)
+    if fonte(ano, turno) == 'ao_vivo' and coletor.ativo(ano, turno):
+        return responder(coletor.resposta(ano, turno, ('zonas', uf, cd_mun), lambda: {
+            'uf': uf, 'municipio_codigo': cd_mun, 'zonas': coletor.uf(ano, turno, uf).get('zonas', {}).get(cd_mun, {})}))
+    return responder(comprimir({'uf': uf, 'municipio_codigo': cd_mun, 'zonas': {}}))
+
+
+@app.route('/api/historico')
+def api_historico():
+    """Evolução da apuração (1 ponto a cada 5 min) para o Brasil ou uma UF, gravada pelo coletor."""
+    ano, turno = ler_params()
+    abr = request.args.get('abr', 'BR').upper()
+    if abr != 'BR' and abr not in ESTADOS:
+        abr = 'BR'
+    if not coletor.banco or not ELEICOES.get(ano, {}).get('ao_vivo'):
+        return responder(comprimir({'abr': abr, 'pontos': []}))
+    return responder(coletor.resposta(ano, turno, ('hist', abr),
+                                      lambda: {'abr': abr, 'pontos': coletor.historico(ano, turno, abr)}))
 
 
 # ===================== CONTADOR DE ACESSOS =====================
@@ -578,6 +759,9 @@ def api_saude():
             'armazenamento': c.arm.descricao, 'ultimo_erro': c.ultimo_erro,
         },
         'tse': {'ultima_volta_ha_seg': int(agora - _laco_tse['volta']) if _laco_tse['volta'] else None},
+        'coletor_interno': {'ligado': COLETOR_NO_RENDER, 'modo': 'completo' if COLETOR_COMPLETO else 'leve',
+                            'ultimo_ciclo_ha_seg': int(agora - _coletor_interno['ultimo_ciclo']) if _coletor_interno['ultimo_ciclo'] else None,
+                            'encerrado': _coletor_interno['encerrado'], 'ultimo_erro': _coletor_interno['ultimo_erro']},
     })
     resp.headers['Cache-Control'] = 'no-store'
     return resp

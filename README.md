@@ -34,6 +34,24 @@ Quando Brasil e as 27 UFs chegam a 100%, o servidor **para sozinho de consultar 
 (a marca fica salva em `dados_cache_{ano}_t{turno}.json`; depois de reiniciar ele faz no máximo
 uma leitura para confirmar). Como rede de segurança, também para 3 dias após a eleição.
 
+## Coletor ao vivo (todos os níveis a cada 5 min)
+
+Durante a apuração, rode no seu computador (o Render só lê os dados prontos do Upstash):
+
+```bash
+export UPSTASH_REDIS_REST_URL="..."   # os mesmos valores configurados no Render
+export UPSTASH_REDIS_REST_TOKEN="..."
+caffeinate -i python coletor_ao_vivo.py 2026 2
+```
+
+A cada 5 minutos ele baixa Brasil, UFs, municípios e zonas eleitorais (só o que mudou), grava uma "foto"
+por UF e um ponto de histórico (Brasil e UFs) para a aba "Evolução da apuração". Para sozinho em 100%.
+Se o coletor parar, depois de 15 minutos o site volta sozinho ao modo antigo (Brasil e UFs consultados direto no TSE).
+
+**Sem depender do computador:** defina `COLETOR_NO_RENDER=1` no Render e o próprio servidor roda o coletor.
+No plano gratuito ele roda no modo leve (Brasil, UFs e municípios; sem zonas e sem governador por município).
+Com `COLETOR_COMPLETO=1` inclui zonas e governador por município; use só com plano pago (mais CPU).
+
 ## Congelar um turno encerrado (libera o mapa por município)
 
 ```bash

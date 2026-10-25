@@ -152,6 +152,11 @@
         .grafico-dica { position: absolute; pointer-events: none; transform: translate(-50%, calc(-100% - 10px)); background: rgba(28,30,33,0.92); color: #fff; font-size: 12px; padding: 6px 9px; border-radius: 6px; white-space: nowrap; }
         .nota-privacidade { font-size: 12px; color: var(--cinza); line-height: 1.6; background: #fff; border-radius: 10px; padding: 12px 16px; box-shadow: var(--sombra); }
 
+        /* Zonas eleitorais e evolução */
+        .zonas-titulo { font-size: 14px; font-weight: 700; color: var(--forte); margin: 18px 0 10px; border-top: 2px solid var(--borda); padding-top: 12px; }
+        .cargo-sub { font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--cinza); margin: 8px 0 4px; }
+        .grafico.grafico-alto { height: 340px; }
+
         /* Dispositivos móveis */
         @media (max-width: 900px) {
             body { padding: 8px; }
@@ -163,6 +168,7 @@
             .controls-bar { flex-direction: column; align-items: stretch; gap: 8px; }
             .eleicao-bar { padding: 10px 12px; }
             .grafico { height: 220px; }
+            .grafico.grafico-alto { height: 280px; }
             .search-inputs-wrapper { flex-direction: column; align-items: stretch; }
             .search-select, .search-btn { width: 100%; }
             .main-layout { display: block; }
@@ -182,6 +188,7 @@
 
     <nav class="abas-site" role="tablist" aria-label="Seções do site">
         <a href="#apuracao" id="aba-apuracao" class="aba-site ativa" role="tab" aria-selected="true">🗳️ Apuração</a>
+        <a href="#evolucao" id="aba-evolucao" class="aba-site" role="tab" aria-selected="false">📈 Evolução da apuração</a>
         <a href="#acessos" id="aba-acessos" class="aba-site" role="tab" aria-selected="false">👥 Acessos ao site <span id="aba-acessos-agora" class="badge-agora" title="pessoas acessando agora"></span></a>
     </nav>
 
@@ -287,8 +294,33 @@
         <div class="grid-cargos" id="grid-cargos-conteudo">
             <div class="msg">Selecione um estado no mapa ou pesquise uma cidade acima para ver a apuração completa.</div>
         </div>
+        <div id="zonas-conteudo"></div>
     </div>
     </div>
+
+    <section id="secao-evolucao" hidden>
+        <div class="controls-bar">
+            <div class="status-text" id="ev-status">Carregando...</div>
+            <div class="toggle-container">
+                <label for="ev-abr" class="sr-only">Brasil ou estado</label>
+                <select id="ev-abr" class="select-regiao-btn" onchange="carregarEvolucao()">
+                    <option value="BR">🇧🇷 Brasil</option>
+                </select>
+            </div>
+        </div>
+        <div class="grafico-card">
+            <div class="grafico-titulo" id="ev-titulo">Disputa ao longo da apuração</div>
+            <div class="grafico-sub">% dos votos válidos de cada candidato, um ponto a cada 5 minutos</div>
+            <div id="graf-evolucao" class="grafico grafico-alto"></div>
+        </div>
+        <div class="grafico-card">
+            <div class="grafico-titulo">Urnas apuradas</div>
+            <div class="grafico-sub">% das seções já totalizadas pelo TSE em cada momento</div>
+            <div id="graf-apurado" class="grafico"></div>
+        </div>
+        <p class="nota-privacidade">Os pontos são gravados a cada 5 minutos a partir da divulgação oficial do TSE, enquanto a apuração acontece.
+            No começo da noite a vantagem costuma oscilar bastante, porque as urnas de cada região chegam em ritmos diferentes.</p>
+    </section>
 
     <section id="secao-acessos" hidden>
         <div class="header-dashboard">
@@ -443,7 +475,8 @@
         const dataBR = iso => iso.split('-').reverse().join('/');
         // Mapa por município só com resultado publicado em arquivo (anos anteriores ou turno congelado).
         // Durante a apuração ao vivo ele exigiria centenas de consultas ao TSE por clique.
-        const temMapaMunicipal = () => eleicao.fonte !== 'ao_vivo';
+        let mapaAoVivo = false;   // o servidor avisa quando o coletor está gravando todos os municípios
+        const temMapaMunicipal = () => eleicao.fonte !== 'ao_vivo' || mapaAoVivo;
 
         async function getJSON(url) {
             const res = await fetch(url);
@@ -572,6 +605,7 @@
             fecharDrawer();
             dadosVotacao = {};
             ultimaAtualizacao = null;
+            mapaAoVivo = false;
             resetarCards();
             const ufBusca = $('search-uf').value;
             if (ufBusca) carregarCidadesEstado(ufBusca);
@@ -617,6 +651,9 @@
             if (abaAtual() === 'apuracao') {
                 $('titulo-pagina').textContent = titulo;
                 document.title = titulo;
+            } else if (abaAtual() === 'evolucao') {
+                $('titulo-pagina').textContent = `Evolução da apuração – ${eleicao.ano}, ${eleicao.turno}º turno`;
+                carregarEvolucao();
             }
             POSICOES.forEach((pos, i) => { $(`br-${pos}-titulo`).textContent = ehMunicipal() ? `${i + 1}º Partido` : `${i + 1}º Lugar Geral`; });
             $('sidebar-titulo').textContent = ehMunicipal() ? 'Municípios liderados por Região' : 'Resultado por Região';
@@ -636,6 +673,7 @@
             const ufs = Object.values(REGIOES).flat().sort();
             $('search-uf').insertAdjacentHTML('beforeend', ufs.map(uf => `<option value="${uf}">${uf}</option>`).join(''));
             $('select-regiao').insertAdjacentHTML('beforeend', Object.keys(REGIOES).map(r => `<option value="${r}">📍 ${r}</option>`).join(''));
+            $('ev-abr').insertAdjacentHTML('beforeend', ufs.map(uf => `<option value="${uf}">${uf}</option>`).join(''));
         }
 
         function marcarToggle(id, ativo) {
@@ -740,6 +778,29 @@
                 url: `/api/detalhes/${uf}/${codigoTse}${qs()}`,
                 uf, rolar: true
             });
+            carregarZonas(uf, codigoTse, reqDrawer);
+        }
+
+        // Resultado por zona eleitoral (cidades com mais de uma zona, quando o coletor está ativo)
+        async function carregarZonas(uf, codigoTse, id) {
+            try {
+                const d = await getJSON(`/api/zonas/${uf}/${codigoTse}${qs()}`);
+                if (id !== reqDrawer) return;
+                const zonas = Object.entries(d.zonas || {}).sort((a, b) => a[0].localeCompare(b[0]));
+                if (!zonas.length) return;
+                const nomesCargo = { presidente: 'Presidente', governador: 'Governador', senador: 'Senador' };
+                $('zonas-conteudo').innerHTML = `<div class="zonas-titulo">🗺️ Por zona eleitoral (${zonas.length} zonas)</div>
+                    <div class="grid-cargos">${zonas.map(([zona, info]) => {
+                        const cargos = Object.entries(info.cargos || {});
+                        const apurado = cargos.length ? cargos[0][1].apurado : '0,00';
+                        return `<div class="cargo-box">
+                            <div class="cargo-box-title">Zona ${Number(zona)}</div>
+                            <div class="apurado-mini">Urnas Apuradas: ${esc(apurado)}%${htmlBarra(strToFloatPct(apurado), 'bar-5')}</div>
+                            ${cargos.map(([cargo, r]) => `${cargos.length > 1 ? `<div class="cargo-sub">${nomesCargo[cargo] || cargo}</div>` : ''}
+                                ${(r.candidatos || []).slice(0, 2).map((c, i) => htmlLinhaCandidato(i + 1, c, c.percentual, c.votos, strToFloatPct(c.percentual))).join('')}`).join('')}
+                        </div>`;
+                    }).join('')}</div>`;
+            } catch { /* zonas são um complemento: se falhar, o painel da cidade continua normal */ }
         }
 
         function carregarDetalhesEstado(sigla, nome) {
@@ -763,6 +824,7 @@
 
             drawer.classList.add('active');
             $('drawer-estado-titulo').textContent = titulo;
+            $('zonas-conteudo').innerHTML = '';
             conteudo.innerHTML = `<div class="msg msg-load">${esc(carregando)}</div>`;
             if (rolar) drawer.scrollIntoView({ behavior: 'smooth' });
 
@@ -1048,6 +1110,7 @@
                 reqDrawer++;
                 $('drawer-cargos').classList.add('active');
                 $('drawer-estado-titulo').textContent = `🏙️ ${nomeGeo} (${ufAtiva.sigla})`;
+                $('zonas-conteudo').innerHTML = '';
                 $('grid-cargos-conteudo').innerHTML = '<div class="msg">Sem resultados deste município para a eleição selecionada.</div>';
                 $('drawer-cargos').scrollIntoView({ behavior: 'smooth' });
                 return;
@@ -1222,6 +1285,12 @@
                 dadosVotacao = data.estados || {};
                 ultimaAtualizacao = data.ultima_atualizacao;
                 fonteDescricao = data.fonte_descricao || null;
+                const tinhaMapa = mapaAoVivo;
+                mapaAoVivo = !!data.mapa_municipal;
+                if (ufAtiva && eleicao.fonte === 'ao_vivo') {
+                    if (mapaAoVivo) { setMapaStatus(''); carregarMapaEstado(!!camadaMunicipios); }
+                    else if (tinhaMapa) entrarEstado(ufAtiva.sigla, ufAtiva.nome);   // coletor parou: volta ao modo sem municípios
+                }
                 renderizarStatus(false);
                 if (data.brasil) atualizarCardsBrasil(data.brasil);
                 atualizarEstilo();
@@ -1251,19 +1320,24 @@
         }
 
         // ===================== ABAS DO SITE =====================
-        const abaAtual = () => location.hash === '#acessos' ? 'acessos' : 'apuracao';
+        const abaAtual = () => ({ '#acessos': 'acessos', '#evolucao': 'evolucao' })[location.hash] || 'apuracao';
 
         function mostrarAba() {
             const aba = abaAtual();
             $('secao-apuracao').hidden = aba !== 'apuracao';
             $('secao-acessos').hidden = aba !== 'acessos';
-            ['apuracao', 'acessos'].forEach(a => {
+            $('secao-evolucao').hidden = aba !== 'evolucao';
+            ['apuracao', 'evolucao', 'acessos'].forEach(a => {
                 $(`aba-${a}`).classList.toggle('ativa', a === aba);
                 $(`aba-${a}`).setAttribute('aria-selected', a === aba);
             });
             if (aba === 'apuracao') {
                 atualizarTitulos();
                 setTimeout(() => map.invalidateSize(), 50); // o mapa estava escondido
+            } else if (aba === 'evolucao') {
+                $('titulo-pagina').textContent = `Evolução da apuração – ${eleicao.ano}, ${eleicao.turno}º turno`;
+                document.title = 'Evolução da apuração – Eleições em tempo real';
+                carregarEvolucao();
             } else {
                 $('titulo-pagina').textContent = 'Acessos ao site em tempo real';
                 document.title = 'Acessos ao site – Eleições em tempo real';
@@ -1405,8 +1479,112 @@
             svgEl.addEventListener('touchend', esconder);
         }
 
+        // ===================== EVOLUÇÃO DA APURAÇÃO =====================
+        let dadosEvolucao = null, reqEvolucao = 0;
+
+        async function carregarEvolucao() {
+            const id = ++reqEvolucao, abr = $('ev-abr').value;
+            try {
+                const d = await getJSON(`/api/historico${qs()}&abr=${abr}`);
+                if (id !== reqEvolucao) return;
+                dadosEvolucao = d;
+                renderizarEvolucao();
+            } catch {
+                if (id === reqEvolucao) $('ev-status').textContent = 'Não foi possível carregar a evolução agora. Tentando de novo em instantes.';
+            }
+        }
+
+        function renderizarEvolucao() {
+            const d = dadosEvolucao;
+            if (!d || $('secao-evolucao').hidden) return;
+            const pontos = d.pontos || [];
+            const local = d.abr === 'BR' ? 'Brasil' : d.abr;
+            $('ev-titulo').textContent = `Disputa ao longo da apuração – ${local}`;
+            if (!pontos.length) {
+                $('ev-status').textContent = `${eleicao.ano}, ${eleicao.turno}º turno: sem registros para ${local}.`;
+                const msg = '<div class="grafico-vazio">A evolução é registrada enquanto a apuração acontece ao vivo,<br>com o coletor ligado (a partir do 2º turno de 2026).</div>';
+                $('graf-evolucao').innerHTML = msg; $('graf-apurado').innerHTML = msg;
+                return;
+            }
+            const ultimo = pontos[pontos.length - 1];
+            $('ev-status').innerHTML = `${eleicao.ano}, ${eleicao.turno}º turno · <b>${pontos.length}</b> registros · último às <b>${horaMin(ultimo[0])}</b> <span class="status-prox">(${esc(ultimo[1])}% apurado)</span>`;
+            desenharEvolucao($('graf-evolucao'), pontos);
+            desenharGrafico($('graf-apurado'), pontos.map(p => [p[0], strToFloatPct(p[1])]), '#28a745', '% das urnas apuradas', true);
+        }
+
+        // Linhas por candidato com o valor e o nome no fim da linha (no estilo dos gráficos de pesquisa)
+        function desenharEvolucao(el, pontos) {
+            const ultimo = pontos[pontos.length - 1][2];
+            const cands = ultimo.slice(0, 5).map(([nome, partido]) => ({ nome, partido }));
+            const series = cands.map(c => ({
+                ...c, cor: getCorBarraCandidato(c),
+                pts: pontos.map(p => { const x = p[2].find(k => k[0] === c.nome); return x ? [p[0], strToFloatPct(x[3])] : null; }).filter(Boolean)
+            })).filter(s => s.pts.length);
+            const W = el.clientWidth || 600, H = el.clientHeight || 340, estreito = W < 520;
+            const m = { e: 40, d: estreito ? 52 : 200, t: 14, b: 26 };   // espaço à direita para valor + nome
+            const ts = pontos.map(p => p[0]), t0 = ts[0], t1 = ts[ts.length - 1], span = Math.max(1, t1 - t0);
+            const todos = series.flatMap(s => s.pts.map(p => p[1]));
+            const passo = escalaBonita(Math.max(Math.max(...todos) - Math.min(...todos), 4) / 4);
+            const vmin = Math.max(0, Math.floor((Math.min(...todos) - passo / 2) / passo) * passo);
+            const vmax = Math.min(100, Math.ceil((Math.max(...todos) + passo / 2) / passo) * passo);
+            const x = t => m.e + (W - m.e - m.d) * (pontos.length === 1 ? 0.5 : (t - t0) / span);
+            const y = v => m.t + (H - m.t - m.b) * (1 - (v - vmin) / (vmax - vmin || 1));
+            const pct = v => v.toFixed(1).replace('.', ',');
+
+            let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Evolução da disputa por candidato">`;
+            for (let v = vmin; v <= vmax + passo / 2; v += passo) {
+                const yy = y(v).toFixed(1);
+                svg += `<line x1="${m.e}" x2="${W - m.d}" y1="${yy}" y2="${yy}" stroke="#e4e6eb"/>`
+                     + `<text x="${m.e - 6}" y="${+yy + 4}" text-anchor="end" font-size="11" fill="#65676b">${fmtCurto(v)}%</text>`;
+            }
+            if (vmin < 50 && vmax > 50) svg += `<line x1="${m.e}" x2="${W - m.d}" y1="${y(50)}" y2="${y(50)}" stroke="#65676b" stroke-dasharray="4,4"/>`;
+            const ticks = pontos.length === 1 ? [t0] : [0, 1, 2, 3, 4].map(k => t0 + span * k / 4);
+            ticks.forEach((t, k) => {
+                const ancora = ticks.length === 1 ? 'middle' : k === 0 ? 'start' : k === ticks.length - 1 ? 'end' : 'middle';
+                svg += `<text x="${x(t).toFixed(1)}" y="${H - 6}" text-anchor="${ancora}" font-size="11" fill="#65676b">${horaMin(t)}</text>`;
+            });
+            // rótulos do fim da linha sem sobrepor
+            const finais = series.map(s => ({ s, v: s.pts[s.pts.length - 1][1], yy: y(s.pts[s.pts.length - 1][1]) })).sort((a, b) => a.yy - b.yy);
+            for (let i = 1; i < finais.length; i++) if (finais[i].yy - finais[i - 1].yy < 30) finais[i].yy = finais[i - 1].yy + 30;
+            series.forEach(s => {
+                const d = s.pts.map((p, i) => `${i ? 'L' : 'M'}${x(p[0]).toFixed(1)},${y(p[1]).toFixed(1)}`).join('');
+                svg += `<path d="${d}" fill="none" stroke="${s.cor}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>`;
+            });
+            finais.forEach(({ s, v, yy }) => {
+                const ux = x(s.pts[s.pts.length - 1][0]), uy = y(v);
+                svg += `<circle cx="${ux}" cy="${uy}" r="5" fill="${s.cor}" stroke="#fff" stroke-width="2"/>`
+                     + `<text x="${ux + 10}" y="${yy + 5}" font-size="${estreito ? 14 : 18}" font-weight="800" fill="${s.cor}">${pct(v)}</text>`;
+                if (!estreito) svg += `<text x="${ux + 62}" y="${yy + 5}" font-size="12" font-weight="700" fill="#1c1e21">${esc(s.nome)}</text>`
+                                    + `<text x="${ux + 62}" y="${yy + 19}" font-size="11" fill="#65676b">${esc(s.partido)}</text>`;
+            });
+            svg += `<line class="g-cursor" y1="${m.t}" y2="${H - m.b}" stroke="#1c1e21" stroke-dasharray="3,3" visibility="hidden"/></svg><div class="grafico-dica" hidden></div>`;
+            el.innerHTML = svg;
+
+            const svgEl = el.querySelector('svg'), cursor = el.querySelector('.g-cursor'), dica = el.querySelector('.grafico-dica');
+            const mostrar = ev => {
+                const r = svgEl.getBoundingClientRect();
+                const cx = ((ev.touches ? ev.touches[0].clientX : ev.clientX) - r.left) * W / r.width;
+                const alvo = t0 + (cx - m.e) / (W - m.e - m.d) * span;
+                let melhor = pontos[0];
+                for (const p of pontos) if (Math.abs(p[0] - alvo) < Math.abs(melhor[0] - alvo)) melhor = p;
+                const px = x(melhor[0]);
+                cursor.setAttribute('x1', px); cursor.setAttribute('x2', px); cursor.setAttribute('visibility', 'visible');
+                dica.hidden = false;
+                dica.style.left = `${Math.min(Math.max(px * r.width / W, 90), r.width - 90)}px`;
+                dica.style.top = `${m.t * r.height / H + 70}px`;
+                dica.innerHTML = `<b>${horaMin(melhor[0])}</b> · ${esc(melhor[1])}% apurado<br>`
+                    + melhor[2].slice(0, 5).map(([nome, , , p]) => `${esc(nome)}: <b>${esc(p)}%</b>`).join('<br>');
+            };
+            const esconder = () => { cursor.setAttribute('visibility', 'hidden'); dica.hidden = true; };
+            svgEl.addEventListener('mousemove', mostrar);
+            svgEl.addEventListener('touchstart', mostrar, { passive: true });
+            svgEl.addEventListener('touchmove', mostrar, { passive: true });
+            svgEl.addEventListener('mouseleave', esconder);
+            svgEl.addEventListener('touchend', esconder);
+        }
+
         let redesenho;
-        window.addEventListener('resize', () => { clearTimeout(redesenho); redesenho = setTimeout(renderizarAcessos, 150); });
+        window.addEventListener('resize', () => { clearTimeout(redesenho); redesenho = setTimeout(() => { renderizarAcessos(); renderizarEvolucao(); }, 150); });
 
         // ===================== INICIALIZAÇÃO =====================
         popularSelects();
@@ -1419,6 +1597,7 @@
         enviarPresenca();
         setInterval(enviarPresenca, 60000);
         setInterval(() => { if (abaAtual() === 'acessos' && document.visibilityState === 'visible') carregarAcessos(); }, 30000);
+        setInterval(() => { if (abaAtual() === 'evolucao' && document.visibilityState === 'visible') carregarEvolucao(); }, 60000);
 
         // Um único relógio controla o contador e a próxima leitura (só em eleições ao vivo)
         setInterval(() => {
