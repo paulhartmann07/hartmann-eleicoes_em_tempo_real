@@ -7,3 +7,4 @@ __pycache__/
 .DS_Store
 dados_anuncios.json
 dados_publicidade.json
+dados_stories.json

@@ -193,7 +193,8 @@ button{{border:none;background:#e4e6eb;border-radius:6px;padding:6px 10px;font-w
 button.principal{{background:#0056b3;color:#fff;padding:10px 18px;margin-top:14px}}button.perigo{{background:#fde2e2;color:#b91c1c}}
 .aviso{{background:#e7f6ec;border:1px solid #9bd5ae;border-radius:8px;padding:10px 14px;margin-bottom:14px}}a.bt{{font-size:13px}}</style></head><body>
 <h2 style="margin:0 0 6px">📢 Espaços publicitários</h2>
-<p style="margin:0 0 14px;font-size:13px"><a class="bt" href="/admin/anuncios?chave={ch}">Ver interessados em anunciar →</a></p>
+<p style="margin:0 0 14px;font-size:13px"><a class="bt" href="/admin/anuncios?chave={ch}">Ver interessados em anunciar →</a>
+&nbsp;·&nbsp;<a class="bt" href="/admin/stories?chave={ch}">Editar stories →</a></p>
 {f'<div class="aviso">{e(aviso)}</div>' if aviso else ''}
 <div class="caixa"><h3>➕ Novo anúncio</h3>
 <form method="post" action="/admin/publicidade/novo" enctype="multipart/form-data" onsubmit="return conferirImagem(this)"><input type="hidden" name="chave" value="{ch}">

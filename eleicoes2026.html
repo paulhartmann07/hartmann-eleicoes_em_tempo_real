@@ -1758,7 +1758,10 @@
 
         async function carregarStories() {
             try {
-                if (!pacoteStories) pacoteStories = await getJSON('/static/stories.json');
+                if (!pacoteStories) {
+                    try { pacoteStories = await getJSON('/api/stories'); }                    // editável em /admin/stories
+                    catch { pacoteStories = await getJSON('/static/stories.json'); }        // reserva
+                }
             } catch { return; }
             const p = pacoteStories;
             const daEleicao = p.eleicao && p.eleicao.ano === eleicao.ano && p.eleicao.turno === eleicao.turno;

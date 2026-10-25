@@ -808,6 +808,10 @@ import publicidade  # noqa: E402
 
 publicidade.iniciar(app, responder, comprimir)
 
+import stories_admin  # noqa: E402
+
+stories_admin.iniciar(app, responder, comprimir)
+
 
 @app.route('/api/saude')
 def api_saude():

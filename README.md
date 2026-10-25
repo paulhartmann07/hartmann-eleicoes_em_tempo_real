@@ -117,6 +117,12 @@ Para subir, pausar ou remover anúncios, sem deploy: `/admin/publicidade?chave=S
 Imagens até 600 KB (PNG, JPG, WEBP ou GIF), guardadas no Upstash. Vistas contam quando ao menos metade do
 anúncio aparece na tela; cliques passam por `/pub/clique/<id>`. Os números são gravados a cada minuto.
 
+## Stories (aba Análises)
+
+Edite pelo navegador, sem deploy: `/admin/stories?chave=SUA_SENHA`. Criar, editar (com versão opcional em inglês),
+reordenar, pausar, apagar e escolher em qual eleição aparecem. Ficam no Upstash; na primeira vez a página importa
+`static/stories.json`, que continua como reserva (botão "Restaurar stories do arquivo original").
+
 ## Rodar localmente
 
 ```bash
