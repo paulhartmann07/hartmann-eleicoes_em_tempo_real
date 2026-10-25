@@ -490,6 +490,7 @@
             [/^🔄 Consultando votação em (.+)\.\.\.$/, (m, x) => `🔄 Loading results for ${x}...`],
             [/^🏛️ Apuração de Outros Cargos - (.+)$/, (m, x) => `🏛️ Other races - ${x}`],
             [/^🏛️ Governador - (.+)$/, (m, x) => `🏛️ Governor - ${x}`],
+            [/^🏛️ Apuração - (.+)$/, (m, x) => `🏛️ Results - ${x}`],
             [/^🏛️ Prefeituras - (.+)$/, (m, x) => `🏛️ Mayors - ${x}`],
             [/^🌎 Votação no exterior – (.+)$/, (m, x) => `🌎 Voting abroad – ${I18N_PAISES[x] || x}`],
             [/^🗺️ Por zona eleitoral \((\d+) zonas\)$/, (m, n) => `🗺️ By electoral zone (${n} zones)`],
@@ -1325,7 +1326,7 @@
             const municipal = ehMunicipal();
             abrirDrawer({
                 titulo: municipal ? `🏛️ Prefeituras - ${nome} (${sigla})`
-                    : eleicao.turno === 2 ? `🏛️ Governador - ${nome} (${sigla})`
+                    : eleicao.turno === 2 ? `🏛️ Apuração - ${nome} (${sigla})`
                     : `🏛️ Apuração de Outros Cargos - ${nome} (${sigla})`,
                 carregando: municipal ? '🔄 Consultando prefeituras do estado...'
                     : '🔄 Consultando apuração de Governadores, Senadores e Deputados no TSE...',
@@ -1335,8 +1336,20 @@
             });
         }
 
+        let drawerAtual = null;   // painel aberto: recarregado a cada leitura enquanto a apuração está ao vivo
+
+        async function atualizarDrawerAberto() {
+            if (!drawerAtual || !$('drawer-cargos').classList.contains('active')) return;
+            const { url, uf } = drawerAtual, id = reqDrawer;
+            try {
+                const data = await getJSON(url);
+                if (id === reqDrawer && drawerAtual && drawerAtual.url === url) renderizarGradeCargos(data.cargos, uf, $('grid-cargos-conteudo'));
+            } catch { /* mantém o que está na tela */ }
+        }
+
         async function abrirDrawer({ titulo, carregando, erro, url, uf, rolar }) {
             const id = ++reqDrawer;
+            drawerAtual = { url, uf };
             const drawer = $('drawer-cargos');
             const conteudo = $('grid-cargos-conteudo');
 
@@ -2398,6 +2411,7 @@
                     else if (tinhaMapa) entrarEstado(ufAtiva.sigla, ufAtiva.nome);   // coletor parou: volta ao modo sem municípios
                 }
                 renderizarStatus(false);
+                if (eleicao.fonte === 'ao_vivo') atualizarDrawerAberto();
                 if (data.brasil) atualizarCardsBrasil(data.brasil);
                 const semVotos = !(data.brasil?.candidatos?.length) && strToFloatPct(data.brasil?.apurado) === 0;
                 $('aviso-ao-vivo').hidden = !(eleicao.ao_vivo && semVotos);

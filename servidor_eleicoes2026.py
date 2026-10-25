@@ -507,6 +507,10 @@ class LeitorColetor:
     def exterior(self, ano, turno):
         return self._obter(ano, turno, 'exterior', ['GET', f'ao_vivo:{ano}:{turno}:exterior']) or {}
 
+    def estadual(self, ano, turno):
+        """Presidente e governador de cada UF, gravados a cada minuto pela leitura rápida."""
+        return self._obter(ano, turno, 'estadual', ['GET', f'ao_vivo:{ano}:{turno}:estadual']) or {}
+
     def historico(self, ano, turno, abr):
         return self._obter(ano, turno, f'hist:{abr}', ['LRANGE', f'ao_vivo:{ano}:{turno}:hist:{abr}', 0, -1]) or []
 
@@ -631,7 +635,8 @@ def api_detalhes_estado(uf):
         return responder(detalhes_historicos(ano, turno, uf)['estado'], MAX_AGE_HISTORICO)
     if f == 'ao_vivo' and coletor.ativo(ano, turno):
         return responder(coletor.resposta(ano, turno, ('det', uf), lambda: {
-            'uf': uf, 'cargos': coletor.uf(ano, turno, uf).get('estado', {}).get('cargos', {})}))
+            'uf': uf, 'cargos': {**coletor.uf(ano, turno, uf).get('estado', {}).get('cargos', {}),
+                                 **coletor.estadual(ano, turno).get(uf, {})}}))   # totais da leitura rápida têm prioridade
     if f == 'ao_vivo':
         return responder(resposta_em_cache(('det', ano, turno, uf, None),
                                            lambda: {'uf': uf, **detalhes_ao_vivo(ano, turno, uf)}, ttl=ttl_detalhes(ano, turno)))

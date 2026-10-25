@@ -396,18 +396,27 @@ def semear_ultimo_bom(ano, turno, banco):
         print(f"  [aviso] não consegui recuperar o último resumo: {e}", flush=True)
 
 
+ufs_governador_rapido = None   # UFs com 2º turno para governador (descobertas na 1ª leitura rápida)
+
+
 def ciclo_rapido(ano, turno, cod, banco):
-    """Brasil, UFs e total do exterior (~55 arquivos): grava os cards e um ponto do gráfico de evolução."""
+    """Brasil, UFs (presidente e governador) e total do exterior: grava os cards, o painel de cada estado e um ponto do gráfico."""
+    global ufs_governador_rapido
     def url(abr, cargo, uf):
         tipo, c = CARGOS[cargo]
         return f"{TSE_BASE}/ele{ano}/{int(cod[tipo])}/dados/{uf}/{abr}-c{c:04d}-e{int(cod[tipo]):06d}-u.json"
     tarefas = [(('br', 'presidente'), url('br', 'presidente', 'br')), (('ZZ', 'presidente'), url('zz', 'presidente', 'zz'))]
     tarefas += [((uf, 'presidente'), url(uf.lower(), 'presidente', uf)) for uf in ESTADOS]
+    if turno == 2:   # governador: na 1ª leitura testa as 27 UFs; depois, só as que têm 2º turno para governador
+        ufs_gov = ufs_governador_rapido if ufs_governador_rapido is not None else ESTADOS
+        tarefas += [((uf, 'governador'), url(uf.lower(), 'governador', uf)) for uf in ufs_gov]
     if not ultimo_bom:
         semear_ultimo_bom(ano, turno, banco)
-    res, frescos, falhas = {}, set(), 0
+    res, frescos, falhas, falhou = {}, set(), 0, set()
     with ThreadPoolExecutor(max_workers=WORKERS) as ex:
         for (k, _), (r, _st) in zip(tarefas, ex.map(lambda t: baixar(t[1]), tarefas)):
+            if _st == 'falha' and not r:
+                falhou.add(k)
             if r:
                 res[k] = r
                 frescos.add(k)
@@ -422,6 +431,14 @@ def ciclo_rapido(ano, turno, cod, banco):
         limitador.fim_de_ciclo()
         return False
     brasil = res[('br', 'presidente')]
+    if turno == 2 and ufs_governador_rapido is None and not any(c == 'governador' for _, c in falhou):
+        ufs_governador_rapido = sorted(uf for uf in ESTADOS if res.get((uf, 'governador'), {}).get('candidatos') is not None
+                                       and (uf, 'governador') in frescos)
+    estadual = {}
+    for uf in ESTADOS:
+        cargos = {c: res[(uf, c)] for c in ('presidente', 'governador') if (uf, c) in res}
+        if cargos:
+            estadual[uf] = cargos
     estados = {uf: res[(uf, 'presidente')] for uf in ESTADOS if (uf, 'presidente') in res}
     exterior = res.get(('ZZ', 'presidente'))
     finalizado = brasil.get('apurado') == '100,00' and all(estados.get(uf, {}).get('apurado') == '100,00' for uf in ESTADOS)
@@ -431,7 +448,8 @@ def ciclo_rapido(ano, turno, cod, banco):
     def ponto(r):
         return [int(time.time()), r.get('apurado', '0,00'),
                 [[c['nome'], c['partido'], int(c['votos'].replace('.', '') or 0), c['percentual']] for c in r.get('candidatos', [])[:5]]]
-    comandos = [['SET', chave(ano, turno, 'resumo'), empacotar(resumo), 'EX', EXPIRA_SEG]]
+    comandos = [['SET', chave(ano, turno, 'resumo'), empacotar(resumo), 'EX', EXPIRA_SEG],
+                ['SET', chave(ano, turno, 'estadual'), empacotar(estadual), 'EX', EXPIRA_SEG]]
     serie = [('BR', brasil)] + list(estados.items()) + ([('ZZ', exterior)] if exterior and exterior.get('candidatos') else [])
     chaves_tse = {'BR': ('br', 'presidente'), 'ZZ': ('ZZ', 'presidente')}
     for abr, r in serie:
