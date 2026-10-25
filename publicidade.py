@@ -28,6 +28,7 @@ ARQUIVO_LOCAL = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'dados_
 ESPACOS = {
     'topo':     {'nome': 'Topo', 'tamanho': '970 × 90 px (aparece abaixo das abas, em todas as seções)'},
     'abertura': {'nome': 'Abertura (popup)', 'tamanho': '600 × 500 px (aparece ao abrir o site, no máximo 1x a cada 12h por pessoa)'},
+    'intervalo': {'nome': 'Popup a cada 10 min', 'tamanho': '600 × 500 px (reaparece a cada 10 min para quem está com o site aberto; só aparece se houver anúncio)'},
     'lateral':  {'nome': 'Laterais', 'tamanho': '160 × 600 px (colunas fixas, só em telas largas)'},
     'rodape':   {'nome': 'Rodapé', 'tamanho': '970 × 90 px (fim de todas as páginas)'},
 }

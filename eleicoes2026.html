@@ -1972,6 +1972,34 @@
             }, 2000);
         }
         function fecharAbertura() { $('modal-abertura').hidden = true; }
+
+        // Popup periódico (espaço "intervalo"): reaparece a cada 10 min, só com anúncio vendido,
+        // só com a aba visível e sem nada aberto na tela. Recarregar a página não zera a contagem.
+        const INTERVALO_POPUP = 10 * 60 * 1000;
+        const algoAberto = () => !$('modal-abertura').hidden || !$('modal-anuncie').hidden || !$('story-overlay').hidden;
+        function lerUltimoPopup() {
+            try {
+                const v = Number(localStorage.getItem('pub_intervalo') || 0);
+                if (v) return v;
+                localStorage.setItem('pub_intervalo', String(Date.now()));   // 1ª visita: o primeiro só vem daqui a 10 min
+            } catch { /* sem armazenamento: conta a partir de agora */ }
+            return Date.now();
+        }
+        let ultimoPopup = lerUltimoPopup();
+        async function talvezPopupIntervalo() {
+            if (document.visibilityState !== 'visible' || algoAberto() || Date.now() - ultimoPopup < INTERVALO_POPUP) return;
+            try { pubEspacos = (await getJSON('/api/publicidade')).espacos || pubEspacos; } catch { /* usa o que já tem */ }
+            const lista = pubEspacos.intervalo || [];
+            if (!lista.length || algoAberto()) return;   // sem anúncio vendido para este espaço: não mostra nada
+            const ad = embaralhar(lista)[0];
+            $('abertura-conteudo').innerHTML = htmlAnuncio(ad) +
+                '<button class="negociar-abertura" onclick="fecharAbertura(); abrirAnuncie()">📣 Quero anunciar também</button>';
+            $('modal-abertura').hidden = false;
+            registrarVistas([ad.id]);
+            ultimoPopup = Date.now();
+            try { localStorage.setItem('pub_intervalo', String(ultimoPopup)); } catch { /* sem armazenamento */ }
+        }
+        setInterval(talvezPopupIntervalo, 30000);
         $('modal-abertura').addEventListener('click', ev => { if (ev.target.id === 'modal-abertura') fecharAbertura(); });
         document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && !$('modal-abertura').hidden) fecharAbertura(); });
 
