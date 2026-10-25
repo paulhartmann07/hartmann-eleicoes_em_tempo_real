@@ -157,6 +157,8 @@
         .cargo-sub { font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--cinza); margin: 8px 0 4px; }
         .grafico.grafico-alto { height: 340px; }
         .toggle-group[hidden] { display: none; }
+        .aviso-ao-vivo { background: #fff8e1; border: 1px solid #f5d77a; border-left: 5px solid #f59e0b; border-radius: 10px;
+                         padding: 12px 16px; margin-bottom: 15px; font-size: 14px; line-height: 1.5; color: #5c4400; }
 
         /* Dispositivos móveis */
         @media (max-width: 900px) {
@@ -204,6 +206,12 @@
             <button id="tab-t2" class="btn-toggle" role="tab" aria-selected="false" onclick="selecionarEleicao(eleicao.ano, 2)">2º Turno</button>
         </div>
         <span id="eleicao-info" class="eleicao-info"></span>
+    </div>
+
+    <div class="aviso-ao-vivo" id="aviso-ao-vivo" role="status" hidden>
+        ⏳ <b>A totalização oficial do TSE começa às 17h (horário de Brasília).</b>
+        Os números do exterior que circulam antes disso vêm de boletins de urna de seções já encerradas e ainda não são o resultado oficial.
+        Esta página se atualiza sozinha quando os primeiros dados chegarem.
     </div>
 
     <div class="header-dashboard">
@@ -609,6 +617,7 @@
             // Zera tudo o que pertence à eleição anterior (mas mantém o estado aberto, se houver)
             const estadoAberto = ufAtiva;
             alterarVista('brasil');
+            $('aviso-ao-vivo').hidden = true;
             dadosExterior = null;
             $('grupo-vista').hidden = true;
             verificarExterior();
@@ -1473,6 +1482,8 @@
                 }
                 renderizarStatus(false);
                 if (data.brasil) atualizarCardsBrasil(data.brasil);
+                const semVotos = !(data.brasil?.candidatos?.length) && strToFloatPct(data.brasil?.apurado) === 0;
+                $('aviso-ao-vivo').hidden = !(eleicao.ao_vivo && semVotos);
                 atualizarEstilo();
                 atualizarTooltips();
                 atualizarPainelRegioes();
