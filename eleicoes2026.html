@@ -432,7 +432,8 @@
         const POSICOES = ['lider', 'segundo', 'terceiro', 'quarto', 'quinto'];
 
         // ===================== ESTADO =====================
-        const map = L.map('map', { center: CENTRO, zoom: ZOOM_INICIAL });
+        // zoomSnap 0.5: permite meio nível, para o limite de afastamento encaixar o país no quadro
+        const map = L.map('map', { center: CENTRO, zoom: ZOOM_INICIAL, zoomSnap: 0.5, maxBoundsViscosity: 1.0 });
         let geoJsonLayer = null;
         let rawGeoJsonData = null;
         const cacheGeo = {};
@@ -989,7 +990,19 @@
                 }
             }).addTo(map);
             if (camadaMunicipios) camadaMunicipios.bringToFront();
+            ajustarLimitesMapa();
         }
+
+        // Limites do mapa: não deixa afastar além do país inteiro (com uma margem) nem arrastá-lo para fora da tela.
+        // Calculado a partir do desenho atual, porque no modo Proporcional os estados ocupam uma área bem maior.
+        function ajustarLimitesMapa() {
+            if (!geoJsonLayer || !map.getSize().x) return;   // mapa escondido (outra aba): recalcula quando aparecer
+            const limites = geoJsonLayer.getBounds().pad(0.05);
+            map.setMaxBounds(limites);
+            map.options.minZoom = 0;   // o Leaflet nunca calcula abaixo do mínimo atual: zera antes de recalcular
+            map.setMinZoom(map.getBoundsZoom(limites));
+        }
+        map.on('resize', ajustarLimitesMapa);   // janela, celular girando, barra de regiões abrindo ou fechando
 
         function atualizarEstilo() {
             if (!geoJsonLayer) return;
