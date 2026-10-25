@@ -104,6 +104,9 @@ def carregar_municipios(ano, cod):
     municipios = {}
     for abr in cfg.get('abr', []):
         uf = abr.get('cd', '').upper()
+        if uf == 'ZZ':   # exterior: cidades do mundo (só presidente)
+            municipios['ZZ'] = [{'codigo': str(m['cd']).zfill(5), 'nome': m.get('nm', '').upper()} for m in abr.get('mu', [])]
+            continue
         if uf not in ESTADOS:
             continue
         nomes_geo = {}
@@ -123,10 +126,61 @@ def carregar_municipios(ano, cod):
                           'ibge': str(m.get('cdi') or '') or nomes_geo.get(normalizar(m.get('nm', ''))),
                           'nome': m.get('nm', '').upper(), 'zonas': sorted(set(zonas))})
         municipios[uf] = lista
-    n_mun = sum(len(v) for v in municipios.values())
-    n_zon = sum(len(m['zonas']) for v in municipios.values() for m in v)
-    print(f"  {n_mun:,} municípios e {n_zon:,} pares município/zona".replace(',', '.'))
+    n_mun = sum(len(v) for k, v in municipios.items() if k != 'ZZ')
+    n_zon = sum(len(m['zonas']) for k, v in municipios.items() if k != 'ZZ' for m in v)
+    n = lambda x: f"{x:,}".replace(',', '.')
+    print(f"  {n(n_mun)} municípios, {n(n_zon)} pares município/zona e {len(municipios.get('ZZ', []))} cidades no exterior")
     return municipios
+
+
+# ===================== EXTERIOR =====================
+_tabela_exterior = None
+
+
+def tabela_exterior():
+    global _tabela_exterior
+    if _tabela_exterior is None:
+        caminho = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'exterior.json')
+        with open(caminho, encoding='utf-8') as f:
+            _tabela_exterior = json.load(f)
+    return _tabela_exterior
+
+
+def consolidar_exterior(res, cidades):
+    """Soma as cidades do exterior por país. % apurado do país = média dos % das suas cidades."""
+    tab = tabela_exterior()
+    paises = {}
+    for m in cidades:
+        iso = tab['locais'].get(m['codigo'], 'OUTROS')
+        info = tab['paises'].get(iso, {'nome': 'Outros locais', 'continente': 'Outros'})
+        p = paises.setdefault(iso, {'nome': info['nome'], 'continente': info['continente'], 'votos': {}, 'partido': {},
+                                    'apurados': [], 'cidades': [], 'cidades_total': 0, 'cidades_concluidas': 0})
+        p['cidades_total'] += 1
+        r = res.get(('ZZ', m['codigo'], 'presidente'))
+        if not r:
+            continue
+        p['apurados'].append(float(r['apurado'].replace(',', '.') or 0))
+        p['cidades_concluidas'] += r['apurado'] == '100,00'
+        for c in r['candidatos']:
+            p['votos'][c['nome']] = p['votos'].get(c['nome'], 0) + int(c['votos'].replace('.', '') or 0)
+            p['partido'][c['nome']] = c['partido']
+        p['cidades'].append({'nome': m['nome'], 'apurado': r['apurado'], 'candidatos': r['candidatos'][:2]})
+    saida = {}
+    for iso, p in paises.items():
+        total = sum(p['votos'].values())
+        if not p['apurados']:
+            continue
+        cands = sorted(p['votos'].items(), key=lambda kv: kv[1], reverse=True)
+        saida[iso] = {
+            'nome': p['nome'], 'continente': p['continente'],
+            'apurado': f"{sum(p['apurados']) / len(p['apurados']):.2f}".replace('.', ','),
+            'cidades_total': p['cidades_total'], 'cidades_concluidas': p['cidades_concluidas'],
+            'candidatos': [{'nome': n, 'partido': p['partido'][n], 'votos': f"{v:,}".replace(',', '.'),
+                            'percentual': f"{100 * v / total if total else 0:.2f}".replace('.', ','), 'eleito': False}
+                           for n, v in cands[:5]],
+            'cidades': sorted(p['cidades'], key=lambda c: c['nome']),
+        }
+    return {'total': res.get(('ZZ', 'presidente'), {'apurado': '0,00', 'candidatos': []}), 'paises': saida}
 
 
 # ===================== UM CICLO =====================
@@ -157,6 +211,7 @@ def ciclo(ano, turno, cod, municipios, banco, ufs_governador, completo=True):
     for uf in ESTADOS:
         fase1.append(((uf, 'presidente'), url(uf.lower(), 'presidente', uf)))
         fase1.append(((uf, 'governador'), url(uf.lower(), 'governador', uf)))
+    fase1.append((('ZZ', 'presidente'), url('zz', 'presidente', 'zz')))
     executar(fase1)
     for uf in ESTADOS:
         if res.get((uf, 'governador'), {}).get('candidatos'):
@@ -173,6 +228,8 @@ def ciclo(ano, turno, cod, municipios, banco, ufs_governador, completo=True):
                 fase2.append(((uf, m['codigo'], cargo), url(f"{u}{m['codigo']}", cargo_gov_ou_dep(cargo, uf), uf)))
                 for z in (m['zonas'] if completo and len(m['zonas']) > 1 else []):   # cidade de 1 zona: a zona é a própria cidade
                     fase2.append(((uf, m['codigo'], z, cargo), url(f"{u}{m['codigo']}-z{z}", cargo, uf)))
+    for m in municipios.get('ZZ', []):   # ~186 cidades: entra também no modo leve
+        fase2.append((('ZZ', m['codigo'], 'presidente'), url(f"zz{m['codigo']}", 'presidente', 'zz')))
     executar(fase2)
     tarefas = fase1 + fase2
 
@@ -203,7 +260,11 @@ def ciclo(ano, turno, cod, municipios, banco, ufs_governador, completo=True):
         estado = {'governador': res[(uf, 'governador')]} if uf in ufs_governador else {}
         fotos[uf] = {'mapa': mapa, 'estado': {'cargos': estado}, 'municipios': det_mun, 'zonas': zonas}
 
-    # --- histórico (Brasil + UFs): [hora, % apurado, [[nome, partido, votos, %], ...]]
+    # --- exterior consolidado por país (o TSE publica por cidade; o país vem de static/exterior.json)
+    exterior = consolidar_exterior(res, municipios.get('ZZ', []))
+    resumo['exterior_disponivel'] = bool(exterior['paises'])
+
+    # --- histórico (Brasil + UFs + exterior): [hora, % apurado, [[nome, partido, votos, %], ...]]
     def ponto(r):
         return [int(time.time()), r.get('apurado', '0,00'),
                 [[c['nome'], c['partido'], int(c['votos'].replace('.', '') or 0), c['percentual']] for c in r.get('candidatos', [])[:5]]]
@@ -211,7 +272,10 @@ def ciclo(ano, turno, cod, municipios, banco, ufs_governador, completo=True):
     # --- gravação no Upstash, em lotes
     comandos = [['SET', chave(ano, turno, 'resumo'), empacotar(resumo), 'EX', EXPIRA_SEG]]
     comandos += [['SET', chave(ano, turno, 'uf', uf), empacotar(f), 'EX', EXPIRA_SEG] for uf, f in fotos.items()]
-    for abr, r in [('BR', brasil)] + list(estados.items()):
+    if exterior['total'].get('candidatos'):
+        comandos.append(['SET', chave(ano, turno, 'exterior'), empacotar(exterior), 'EX', EXPIRA_SEG])
+    serie = [('BR', brasil)] + list(estados.items()) + ([('ZZ', exterior['total'])] if exterior['total'].get('candidatos') else [])
+    for abr, r in serie:
         k = chave(ano, turno, 'hist', abr)
         comandos += [['RPUSH', k, json.dumps(ponto(r), ensure_ascii=False, separators=(',', ':'))],
                      ['LTRIM', k, -MAX_PONTOS_HISTORICO, -1], ['EXPIRE', k, EXPIRA_SEG]]

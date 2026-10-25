@@ -504,6 +504,9 @@ class LeitorColetor:
     def uf(self, ano, turno, uf):
         return self._obter(ano, turno, f'uf:{uf}', ['GET', f'ao_vivo:{ano}:{turno}:uf:{uf}']) or {}
 
+    def exterior(self, ano, turno):
+        return self._obter(ano, turno, 'exterior', ['GET', f'ao_vivo:{ano}:{turno}:exterior']) or {}
+
     def historico(self, ano, turno, abr):
         return self._obter(ano, turno, f'hist:{abr}', ['LRANGE', f'ao_vivo:{ano}:{turno}:hist:{abr}', 0, -1]) or []
 
@@ -722,17 +725,45 @@ def api_zonas(uf, cd_mun):
     return responder(comprimir({'uf': uf, 'municipio_codigo': cd_mun, 'zonas': {}}))
 
 
+@app.route('/api/exterior')
+def api_exterior():
+    """Votação no exterior consolidada por país (gravada pelo coletor). Continua disponível depois do congelamento."""
+    ano, turno = ler_params()
+    if not coletor.banco or not ELEICOES.get(ano, {}).get('ao_vivo'):
+        return responder(comprimir({'total': vazio(), 'paises': {}}))
+    return responder(coletor.resposta(ano, turno, 'exterior', lambda: coletor.exterior(ano, turno) or {'total': vazio(), 'paises': {}}))
+
+
 @app.route('/api/historico')
 def api_historico():
     """Evolução da apuração (1 ponto a cada 5 min) para o Brasil ou uma UF, gravada pelo coletor."""
     ano, turno = ler_params()
     abr = request.args.get('abr', 'BR').upper()
-    if abr != 'BR' and abr not in ESTADOS:
+    if abr not in ('BR', 'ZZ', 'BRSEMZZ') and abr not in ESTADOS:
         abr = 'BR'
     if not coletor.banco or not ELEICOES.get(ano, {}).get('ao_vivo'):
         return responder(comprimir({'abr': abr, 'pontos': []}))
-    return responder(coletor.resposta(ano, turno, ('hist', abr),
-                                      lambda: {'abr': abr, 'pontos': coletor.historico(ano, turno, abr)}))
+
+    def gerar():
+        if abr != 'BRSEMZZ':
+            return {'abr': abr, 'pontos': coletor.historico(ano, turno, abr)}
+        return {'abr': abr, 'pontos': brasil_sem_exterior(coletor.historico(ano, turno, 'BR'), coletor.historico(ano, turno, 'ZZ'))}
+    return responder(coletor.resposta(ano, turno, ('hist', abr), gerar))
+
+
+def brasil_sem_exterior(pontos_br, pontos_zz):
+    """Total Brasil (que inclui o exterior) menos o exterior, ponto a ponto (mesmo ciclo do coletor)."""
+    saida = []
+    for p in pontos_br:
+        zz = min(pontos_zz, key=lambda q: abs(q[0] - p[0]), default=None)
+        if not zz or abs(zz[0] - p[0]) > 120:
+            saida.append(p)   # sem exterior nesse ciclo: o total é o próprio Brasil
+            continue
+        votos_zz = {c[0]: c[2] for c in zz[2]}
+        cands = [[n, partido, max(0, v - votos_zz.get(n, 0))] for n, partido, v, _ in p[2]]
+        total = sum(c[2] for c in cands) or 1
+        saida.append([p[0], p[1], [[n, partido, v, f"{100 * v / total:.2f}".replace('.', ',')] for n, partido, v in cands]])
+    return saida
 
 
 # ===================== CONTADOR DE ACESSOS =====================

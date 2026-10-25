@@ -52,6 +52,13 @@ Se o coletor parar, depois de 15 minutos o site volta sozinho ao modo antigo (Br
 No plano gratuito ele roda no modo leve (Brasil, UFs e municípios; sem zonas e sem governador por município).
 Com `COLETOR_COMPLETO=1` inclui zonas e governador por município; use só com plano pago (mais CPU).
 
+### Exterior (2º turno de 2026)
+
+O coletor também busca o total do exterior (`zz`) e as 186 cidades do exterior (`zz<código>`), soma por país e grava
+no Upstash. No site: botão 🇧🇷 Brasil / 🌎 Mundo no mapa e, na aba de evolução, "Total", "Só no Brasil" e "Exterior".
+A tabela cidade→país (`static/exterior.json`) vem das planilhas de seções do exterior do TRE-DF, compiladas em
+github.com/jonatasbferreira/apuramn (exterior-countries.json). Mapa-múndi: johan/world.geo.json (simplificado).
+
 ## Congelar um turno encerrado (libera o mapa por município)
 
 ```bash

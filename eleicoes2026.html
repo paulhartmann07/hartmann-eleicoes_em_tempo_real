@@ -156,6 +156,7 @@
         .zonas-titulo { font-size: 14px; font-weight: 700; color: var(--forte); margin: 18px 0 10px; border-top: 2px solid var(--borda); padding-top: 12px; }
         .cargo-sub { font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--cinza); margin: 8px 0 4px; }
         .grafico.grafico-alto { height: 340px; }
+        .toggle-group[hidden] { display: none; }
 
         /* Dispositivos móveis */
         @media (max-width: 900px) {
@@ -263,6 +264,10 @@
     <div class="controls-bar">
         <div class="status-text" id="status-text">Aguardando conexão com o servidor...</div>
         <div class="toggle-container">
+            <div class="toggle-group" id="grupo-vista" hidden>
+                <button id="btn-vista-br" class="btn-toggle active" aria-pressed="true" onclick="alterarVista('brasil')">🇧🇷 Brasil</button>
+                <button id="btn-vista-mundo" class="btn-toggle" aria-pressed="false" onclick="alterarVista('mundo')">🌎 Mundo</button>
+            </div>
             <button id="btn-toggle-sidebar" class="btn-toggle" onclick="toggleSidebar()">📊 Regiões</button>
             <select id="select-regiao" class="select-regiao-btn" aria-label="Filtrar por região" onchange="alterarRegiaoFiltro(this.value)">
                 <option value="TODAS">🇧🇷 Todas as Regiões</option>
@@ -304,7 +309,9 @@
             <div class="toggle-container">
                 <label for="ev-abr" class="sr-only">Brasil ou estado</label>
                 <select id="ev-abr" class="select-regiao-btn" onchange="carregarEvolucao()">
-                    <option value="BR">🇧🇷 Brasil</option>
+                    <option value="BR">🇧🇷🌎 Total (Brasil + exterior)</option>
+                    <option value="BRSEMZZ">🇧🇷 Só no Brasil</option>
+                    <option value="ZZ">🌎 Exterior</option>
                 </select>
             </div>
         </div>
@@ -432,7 +439,8 @@
         const POSICOES = ['lider', 'segundo', 'terceiro', 'quarto', 'quinto'];
 
         // ===================== ESTADO =====================
-        const map = L.map('map', { center: CENTRO, zoom: ZOOM_INICIAL });
+        // zoomSnap 0.5: permite meio nível, para o limite de afastamento encaixar o país no quadro
+        const map = L.map('map', { center: CENTRO, zoom: ZOOM_INICIAL, zoomSnap: 0.5, maxBoundsViscosity: 1.0 });
         let geoJsonLayer = null;
         let rawGeoJsonData = null;
         const cacheGeo = {};
@@ -600,6 +608,10 @@
 
             // Zera tudo o que pertence à eleição anterior (mas mantém o estado aberto, se houver)
             const estadoAberto = ufAtiva;
+            alterarVista('brasil');
+            dadosExterior = null;
+            $('grupo-vista').hidden = true;
+            verificarExterior();
             reqVotacao++;
             sairEstado(false);
             fecharDrawer();
@@ -893,6 +905,7 @@
             marcarToggle('btn-cor-apuracao', modoCor === 'apuracao');
             atualizarEstilo();
             atualizarEstiloMunicipios();
+            if (vistaMapa === 'mundo') atualizarMundo();
             atualizarLegenda();
         }
 
@@ -989,7 +1002,20 @@
                 }
             }).addTo(map);
             if (camadaMunicipios) camadaMunicipios.bringToFront();
+            ajustarLimitesMapa();
         }
+
+        // Limites do mapa: não deixa afastar além do país inteiro (com uma margem) nem arrastá-lo para fora da tela.
+        // Calculado a partir do desenho atual, porque no modo Proporcional os estados ocupam uma área bem maior.
+        function ajustarLimitesMapa() {
+            const base = vistaMapa === 'mundo' ? camadaMundo?._paises : geoJsonLayer;
+            if (!base || !map.getSize().x) return;   // mapa escondido (outra aba): recalcula quando aparecer
+            const limites = base.getBounds().pad(0.05);
+            map.setMaxBounds(limites);
+            map.options.minZoom = 0;   // o Leaflet nunca calcula abaixo do mínimo atual: zera antes de recalcular
+            map.setMinZoom(map.getBoundsZoom(limites));
+        }
+        map.on('resize', ajustarLimitesMapa);   // janela, celular girando, barra de regiões abrindo ou fechando
 
         function atualizarEstilo() {
             if (!geoJsonLayer) return;
@@ -1131,12 +1157,165 @@
             if (recentralizar) enquadrarRegiao();
         }
 
+        // ===================== VISTA MUNDO (votação no exterior) =====================
+        let vistaMapa = 'brasil', camadaMundo = null, dadosExterior = null, reqMundo = 0;
+        let geoMundoP = null, tabelaExteriorP = null;
+        const carregarGeoMundo = () => geoMundoP || (geoMundoP = getJSON('/static/mundo.json'));
+        const carregarTabelaExterior = () => tabelaExteriorP || (tabelaExteriorP = getJSON('/static/exterior.json'));
+
+        async function verificarExterior() {
+            try {
+                const d = await getJSON(`/api/exterior${qs()}`);
+                dadosExterior = d;
+                $('grupo-vista').hidden = !Object.keys(d.paises || {}).length;
+                if (vistaMapa === 'mundo') atualizarMundo();
+            } catch { /* sem exterior: o botão continua escondido */ }
+        }
+
+        function alterarVista(vista) {
+            if (vista === vistaMapa) return;
+            vistaMapa = vista;
+            marcarToggle('btn-vista-br', vista === 'brasil');
+            marcarToggle('btn-vista-mundo', vista === 'mundo');
+            const noMundo = vista === 'mundo';
+            ['select-regiao', 'btn-tam-geo', 'btn-tam-pop'].forEach(id => { $(id).disabled = noMundo; });
+            $('sidebar-titulo').textContent = noMundo ? 'Exterior por continente' : (ehMunicipal() ? 'Municípios liderados por Região' : 'Resultado por Região');
+            if (noMundo) {
+                sairEstado(false);
+                fecharDrawer();
+                if (geoJsonLayer) map.removeLayer(geoJsonLayer);
+                carregarMundo();
+            } else {
+                if (camadaMundo) { map.removeLayer(camadaMundo); camadaMundo = null; }
+                if (geoJsonLayer) geoJsonLayer.addTo(map);
+                ajustarLimitesMapa();
+                enquadrarRegiao();
+                atualizarPainelRegioes();
+                atualizarLegenda();
+            }
+        }
+
+        async function carregarMundo() {
+            const id = ++reqMundo;
+            try {
+                const [geo, tabela] = await Promise.all([carregarGeoMundo(), carregarTabelaExterior()]);
+                if (!dadosExterior) dadosExterior = await getJSON(`/api/exterior${qs()}`);
+                if (id !== reqMundo || vistaMapa !== 'mundo') return;
+                if (!camadaMundo) {
+                    camadaMundo = L.featureGroup().addTo(map);
+                    camadaMundo._tabela = tabela;
+                    camadaMundo._paises = L.geoJSON(geo, {
+                        style: f => estiloPais(f.properties.iso),
+                        onEachFeature: (f, layer) => {
+                            layer.bindTooltip('', { sticky: true });
+                            layer.on('click', () => abrirPais(f.properties.iso));
+                        }
+                    }).addTo(camadaMundo);
+                    camadaMundo._bolhas = L.layerGroup().addTo(camadaMundo);
+                    ajustarLimitesMapa();
+                    map.setView([20, 0], map.getMinZoom());
+                }
+                atualizarMundo();
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function estiloPais(iso) {
+            const res = dadosExterior?.paises?.[iso];
+            if (iso === 'BRA') return { fillColor: '#b8bec6', fillOpacity: 0.9, color: '#ffffff', weight: 1.2 };
+            return res
+                ? { fillColor: corDoResultado(res), fillOpacity: 0.8, color: '#ffffff', weight: 0.8 }
+                : { fillColor: '#dfe3e8', fillOpacity: 0.7, color: '#ffffff', weight: 0.6 };
+        }
+
+        function tooltipPais(iso) {
+            const res = dadosExterior?.paises?.[iso];
+            const info = camadaMundo?._tabela?.paises?.[iso];
+            if (iso === 'BRA') return '<b>🇧🇷 Brasil</b><br>Use o botão <b>Brasil</b> para ver a apuração nacional.';
+            if (!res) return `<b>${esc(info?.nome || iso)}</b><br>Sem seções de votação brasileiras.`;
+            return htmlTooltip(esc(res.nome), `${esc(res.continente)} · ${res.cidades_concluidas}/${res.cidades_total} cidades concluídas`,
+                res, 'votos', `👉 Clique para ver ${res.cidades_total > 1 ? `as ${res.cidades_total} cidades` : 'o resultado'}`);
+        }
+
+        function atualizarMundo() {
+            if (!camadaMundo) return;
+            camadaMundo._paises.eachLayer(l => {
+                const iso = l.feature.properties.iso;
+                l.setStyle(estiloPais(iso));
+                l.setTooltipContent(tooltipPais(iso));
+            });
+            // bolhas: tamanho pelos votos (deixa visíveis os países pequenos, como Singapura)
+            camadaMundo._bolhas.clearLayers();
+            const paises = Object.entries(dadosExterior?.paises || {});
+            const votos = ([, r]) => (r.candidatos || []).reduce((s, c) => s + strToInt(c.votos), 0);
+            const vmax = Math.max(1, ...paises.map(votos));
+            paises.forEach(par => {
+                const [iso, res] = par;
+                const info = camadaMundo._tabela.paises[iso];
+                if (!info) return;
+                const r = 4 + 18 * Math.sqrt(votos(par) / vmax);
+                L.circleMarker([info.lat, info.lon], { radius: r, fillColor: corDoResultado(res), fillOpacity: 0.9, color: '#ffffff', weight: 1.5 })
+                    .bindTooltip(tooltipPais(iso), { sticky: true })
+                    .on('click', () => abrirPais(iso))
+                    .addTo(camadaMundo._bolhas);
+            });
+            atualizarPainelExterior();
+            atualizarLegenda();
+        }
+
+        function abrirPais(iso) {
+            const res = dadosExterior?.paises?.[iso];
+            if (!res) return;
+            reqDrawer++;
+            $('drawer-cargos').classList.add('active');
+            $('drawer-estado-titulo').textContent = `🌎 Votação no exterior – ${res.nome}`;
+            renderizarGradeCargos({ presidente: res }, 'ZZ', $('grid-cargos-conteudo'));
+            const cidades = res.cidades || [];
+            $('zonas-conteudo').innerHTML = cidades.length > 1 ? `<div class="zonas-titulo">🏙️ Por cidade (${cidades.length} cidades)</div>
+                <div class="grid-cargos">${cidades.map(c => `<div class="cargo-box">
+                    <div class="cargo-box-title">${esc(c.nome)}</div>
+                    <div class="apurado-mini">Urnas Apuradas: ${esc(c.apurado)}%${htmlBarra(strToFloatPct(c.apurado), 'bar-5')}</div>
+                    ${(c.candidatos || []).map((k, i) => htmlLinhaCandidato(i + 1, k, k.percentual, k.votos, strToFloatPct(k.percentual))).join('')}
+                </div>`).join('')}</div>` : '';
+            $('drawer-cargos').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Barra lateral no modo mundo: total do exterior + cada continente
+        function atualizarPainelExterior() {
+            const d = dadosExterior || {};
+            const total = d.total || {};
+            const porCont = {};
+            Object.values(d.paises || {}).forEach(p => {
+                const c = porCont[p.continente] = porCont[p.continente] || { votos: {}, partido: {}, apurados: [], paises: 0 };
+                c.paises++;
+                c.apurados.push(strToFloatPct(p.apurado));
+                (p.candidatos || []).forEach(k => { c.votos[k.nome] = (c.votos[k.nome] || 0) + strToInt(k.votos); c.partido[k.nome] = k.partido; });
+            });
+            const cartao = (titulo, sub, apurado, cands) => `<div class="regiao-card">
+                <div class="regiao-header"><span>${titulo}</span> <small>${sub}</small></div>
+                <div class="regiao-apuracao-box">Urnas Apuradas: ${fmtPct(apurado)}%${htmlBarra(apurado, 'bar-5')}</div>
+                ${cands.length ? cands.map((k, i) => htmlLinhaCandidato(i + 1, k, k.percentual, k.votos, strToFloatPct(k.percentual), false)).join('') : '<div class="msg-sm">Aguardando dados...</div>'}
+            </div>`;
+            let html = cartao('🌎 Exterior (total)', `${Object.keys(d.paises || {}).length} países`,
+                              strToFloatPct(total.apurado), (total.candidatos || []).slice(0, 2));
+            Object.entries(porCont).sort((a, b) => a[0].localeCompare(b[0])).forEach(([nome, c]) => {
+                const soma = Object.values(c.votos).reduce((a, b) => a + b, 0) || 1;
+                const cands = Object.entries(c.votos).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([n, v]) => ({
+                    nome: n, partido: c.partido[n], votos: v.toLocaleString('pt-BR'), percentual: fmtPct(100 * v / soma) }));
+                const apurado = c.apurados.reduce((a, b) => a + b, 0) / (c.apurados.length || 1);
+                html += cartao(nome, `${c.paises} países`, apurado, cands);
+            });
+            $('regioes-list').innerHTML = html;
+        }
+
         // ===================== LEGENDA =====================
         const legenda = L.control({ position: 'bottomright' });
         legenda.onAdd = () => L.DomUtil.create('div', 'legend');
 
         function coletarLideres() {
-            const resultados = ufAtiva && camadaMunicipios ? Object.values(dadosMapaUF) : Object.values(dadosVotacao);
+            const resultados = vistaMapa === 'mundo' ? Object.values(dadosExterior?.paises || {})
+                : ufAtiva && camadaMunicipios ? Object.values(dadosMapaUF) : Object.values(dadosVotacao);
             const porCor = new Map();
             resultados.forEach(res => {
                 const c = res?.candidatos?.[0];
@@ -1185,6 +1364,7 @@
 
         // ===================== PAINEL DE REGIÕES =====================
         function atualizarPainelRegioes() {
+            if (vistaMapa === 'mundo') return atualizarPainelExterior();
             let html = '';
             const rotuloTotal = ehMunicipal() ? 'municípios' : 'votos (pessoas)';
 
@@ -1298,6 +1478,7 @@
                 atualizarPainelRegioes();
                 atualizarLegenda();
                 if (data.finalizado && eleicao.ao_vivo) encerrarAoVivo();
+                if (eleicao.fonte === 'ao_vivo') verificarExterior();
             } catch (err) {
                 console.error('Falha ao buscar /api/votacao:', err);
                 if (id === reqVotacao) renderizarStatus(true);
@@ -1498,7 +1679,7 @@
             const d = dadosEvolucao;
             if (!d || $('secao-evolucao').hidden) return;
             const pontos = d.pontos || [];
-            const local = d.abr === 'BR' ? 'Brasil' : d.abr;
+            const local = ({ BR: 'Total (Brasil + exterior)', BRSEMZZ: 'Só no Brasil', ZZ: 'Exterior' })[d.abr] || d.abr;
             $('ev-titulo').textContent = `Disputa ao longo da apuração – ${local}`;
             if (!pontos.length) {
                 $('ev-status').textContent = `${eleicao.ano}, ${eleicao.turno}º turno: sem registros para ${local}.`;
