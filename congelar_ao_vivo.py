@@ -83,6 +83,25 @@ def descobrir_codigos(ano, turno):
     return cod
 
 
+def outros_votos(data):
+    """Brancos, nulos e abstenção do arquivo unificado do TSE (EA20).
+    Brancos (v.vb/v.pvb) e nulos (v.tvn/v.ptvn = nulos + nulos técnicos): % sobre o total de votos.
+    Abstenção (e.a/e.pa) e comparecimento (e.c/e.pc): % sobre o eleitorado das seções totalizadas.
+    Devolve None quando o arquivo não traz esses campos (eleições antigas): o site simplesmente não mostra o bloco."""
+    v, e = data.get('v') or {}, data.get('e') or {}
+
+    def inteiro(x):
+        try:
+            return int(str(x).replace('.', '')) if x not in (None, '') else None
+        except ValueError:
+            return None
+    out = {'brancos': inteiro(v.get('vb')), 'pct_brancos': v.get('pvb'),
+           'nulos': inteiro(v.get('tvn')), 'pct_nulos': v.get('ptvn'),
+           'abstencao': inteiro(e.get('a')), 'pct_abstencao': e.get('pa'),
+           'comparecimento': inteiro(e.get('c')), 'pct_comparecimento': e.get('pc')}
+    return out if any(out[k] is not None for k in ('brancos', 'nulos', 'abstencao')) else None
+
+
 def processar(data, limit=5):
     pst = data.get('s', {}).get('pst', '0,00')
     todos = []
@@ -94,7 +113,11 @@ def processar(data, limit=5):
                                   'percentual': c.get('pvap', '0,00'), 'votos': f"{v:,}".replace(',', '.'),
                                   'eleito': c.get('e', 'n') == 's'}))
     todos.sort(key=lambda x: x[0], reverse=True)
-    return {'apurado': pst, 'candidatos': [c for _, c in todos[:limit]]}
+    res = {'apurado': pst, 'candidatos': [c for _, c in todos[:limit]]}
+    outros = outros_votos(data)
+    if outros:
+        res['outros'] = outros
+    return res
 
 
 def main(ano, turno):

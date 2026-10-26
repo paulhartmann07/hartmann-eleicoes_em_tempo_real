@@ -250,6 +250,17 @@
         .abertura .sim { background: #f59e0b; color: #1c1e21; } .abertura .nao { background: var(--borda); color: var(--texto); }
         .abertura .negociar-abertura { margin-top: 12px; background: #f59e0b; color: #1c1e21; border: none; border-radius: 8px; padding: 9px 16px; font-weight: 800; font-size: 13px; cursor: pointer; }
 
+        /* Brancos, nulos e abstenção */
+        .outros-votos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: -5px 0 15px; }
+        .outros-votos[hidden] { display: none; }
+        .ov-card { background: #fff; border-radius: 10px; box-shadow: var(--sombra); padding: 10px 14px; border-left: 4px solid #9ca3af; }
+        .ov-card .ov-tit { font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--cinza); }
+        .ov-card .ov-val { font-size: 20px; font-weight: 800; color: var(--texto); }
+        .ov-card .ov-sub { font-size: 12px; color: var(--cinza); }
+        .ov-nota { grid-column: 1 / -1; font-size: 11px; color: var(--cinza); margin-top: -4px; }
+        .linha-outros { font-size: 11px; color: var(--cinza); margin-top: 3px; }
+        @media (max-width: 600px) { .outros-votos { grid-template-columns: 1fr 1fr 1fr; gap: 6px; } .ov-card { padding: 8px; } .ov-card .ov-val { font-size: 16px; } .ov-card .ov-sub { font-size: 10px; } }
+
         /* Chat ao vivo */
         .chat-botao { position: fixed; right: 18px; bottom: 18px; z-index: 9000; background: var(--azul); color: #fff; border: none; border-radius: 28px;
                       padding: 12px 18px; font-weight: 800; font-size: 14px; cursor: pointer; box-shadow: 0 6px 18px rgba(0,0,0,0.2); }
@@ -451,7 +462,8 @@
             'para quem acompanha a apuração.': 'for people following the count.', 'Sua marca nesta coluna, ao lado da apuração.': 'Your brand in this column, next to the count.',
             '📣 Anuncie no Eleições em tempo real': '📣 Advertise on Brazil elections live',
             'Sua marca na tela de quem acompanha a apuração: no topo, nas laterais, no rodapé ou nesta abertura.': 'Your brand on the screen of people following the count: at the top, on the sides, in the footer or in this opening window.',
-            'Agora não': 'Not now',
+            'Agora não': 'Not now', '⬜ Brancos': '⬜ Blank', '❌ Nulos': '❌ Null', '🚶 Abstenção': '🚶 Abstention',
+            'Brancos e nulos: % do total de votos. Abstenção: % dos eleitores das seções já apuradas.': 'Blank and null: % of all votes cast. Abstention: % of voters in the polling stations already counted.',
             '💬 Chat ao vivo': '💬 Live chat', 'Chat ao vivo': 'Live chat', 'Converse com quem acompanha a apuração': 'Chat with people following the count',
             'Chat pausado pela moderação': 'Chat paused by the moderators',
             'Respeito sempre: sem ofensas, sem links e sem notícias falsas. Mensagens denunciadas podem ser removidas.': 'Be respectful: no insults, no links and no fake news. Reported messages may be removed.',
@@ -517,6 +529,7 @@
         // Palavras soltas dentro de frases com números (ex.: "1.234 votos", "12 países")
         const I18N_PALAVRAS = [
             [/(\d+)º/g, (m, n) => ordinalEN(+n)],
+            [/\bBrancos\b/g, 'Blank'], [/\bNulos\b/g, 'Null'], [/Abstenção/g, 'Abstention'], [/\beleitores\b/g, 'voters'],
             [/votos apurados \(pessoas\)/g, 'votes counted (people)'], [/votos \(pessoas\)/g, 'votes (people)'], [/\bvotos\b/g, 'votes'],
             [/municípios com resultado/g, 'municipalities reporting'], [/\bmunicípios\b/g, 'municipalities'], [/\bpaíses\b/g, 'countries'],
             [/cidades concluídas/g, 'cities fully counted'], [/\bcidades\b/g, 'cities'], [/\bzonas\b/g, 'zones'],
@@ -647,6 +660,13 @@
             <div class="card-sub" id="br-segundo-votos">0% (0 votos)</div>
             <div class="progress-bar-bg"><div id="br-bar-segundo" class="progress-bar-fill" style="width: 0%;"></div></div>
         </div>
+    </div>
+
+    <div class="outros-votos" id="br-outros" hidden>
+        <div class="ov-card"><div class="ov-tit">⬜ Brancos</div><div class="ov-val" id="ov-brancos">–</div><div class="ov-sub" id="ov-brancos-n"></div></div>
+        <div class="ov-card"><div class="ov-tit">❌ Nulos</div><div class="ov-val" id="ov-nulos">–</div><div class="ov-sub" id="ov-nulos-n"></div></div>
+        <div class="ov-card"><div class="ov-tit">🚶 Abstenção</div><div class="ov-val" id="ov-abstencao">–</div><div class="ov-sub" id="ov-abstencao-n"></div></div>
+        <div class="ov-nota">Brancos e nulos: % do total de votos. Abstenção: % dos eleitores das seções já apuradas.</div>
     </div>
 
     <div class="header-outros-candidatos">
@@ -1073,6 +1093,7 @@
                 ${htmlBarra(strToFloatPct(res.apurado))}
                 <hr>
                 ${lideres}
+                ${linhaOutros(res.outros)}
                 <small class="tip-cta">${chamada}</small>`;
         }
 
@@ -1389,6 +1410,7 @@
                         ${htmlBarra(strToFloatPct(cargo.apurado), 'bar-5')}
                     </div>
                     ${linhas}
+                    ${linhaOutros(cargo.outros)}
                 </div>`;
             }).join('');
         }
@@ -2378,7 +2400,27 @@
             });
         }
 
+        // Brancos, nulos e abstenção (só existem nos arquivos do TSE de 2026 em diante; sem eles, o bloco fica escondido)
+        const fmtNum = n => (n == null ? '' : Number(n).toLocaleString('pt-BR'));
+        function linhaOutros(o) {
+            if (!o) return '';
+            const partes = [['Brancos', o.pct_brancos], ['Nulos', o.pct_nulos], ['Abstenção', o.pct_abstencao]]
+                .filter(([, v]) => v != null).map(([r, v]) => `${r} ${esc(v)}%`);
+            return partes.length ? `<div class="linha-outros">${partes.join(' · ')}</div>` : '';
+        }
+        function atualizarOutrosBrasil(o) {
+            $('br-outros').hidden = !o;
+            if (!o) return;
+            $('ov-brancos').textContent = o.pct_brancos != null ? `${o.pct_brancos}%` : '–';
+            $('ov-brancos-n').textContent = o.brancos != null ? `${fmtNum(o.brancos)} votos` : '';
+            $('ov-nulos').textContent = o.pct_nulos != null ? `${o.pct_nulos}%` : '–';
+            $('ov-nulos-n').textContent = o.nulos != null ? `${fmtNum(o.nulos)} votos` : '';
+            $('ov-abstencao').textContent = o.pct_abstencao != null ? `${o.pct_abstencao}%` : '–';
+            $('ov-abstencao-n').textContent = o.abstencao != null ? `${fmtNum(o.abstencao)} eleitores` : '';
+        }
+
         function atualizarCardsBrasil(brasil) {
+            atualizarOutrosBrasil(brasil.outros);
             $('br-apurado').innerHTML = `${esc(brasil.apurado || '0,00')}% <span class="card-unit">das urnas</span>`;
             $('br-bar-apurado').style.width = `${strToFloatPct(brasil.apurado)}%`;
 

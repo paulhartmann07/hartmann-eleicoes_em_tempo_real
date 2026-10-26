@@ -272,7 +272,12 @@ def resultado_tse(ano, turno, abrangencia, cargo_nome, limit=5, padrao=vazio):
     if not data:
         return falhou()
     pst, cands = processar_json_tse(data, limit)
-    return {'apurado': pst, 'candidatos': cands}
+    res = {'apurado': pst, 'candidatos': cands}
+    from congelar_ao_vivo import outros_votos
+    outros = outros_votos(data)
+    if outros:
+        res['outros'] = outros   # brancos, nulos e abstenção
+    return res
 
 
 # --- Cache do resultado nacional/estadual ao vivo (um por eleição) ---
