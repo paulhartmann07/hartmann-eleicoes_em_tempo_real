@@ -404,7 +404,7 @@ def ciclo_rapido(ano, turno, cod, banco):
     global ufs_governador_rapido
     def url(abr, cargo, uf):
         tipo, c = CARGOS[cargo]
-        return f"{TSE_BASE}/ele{ano}/{int(cod[tipo])}/dados/{uf}/{abr}-c{c:04d}-e{int(cod[tipo]):06d}-u.json"
+        return f"{TSE_BASE}/ele{ano}/{int(cod[tipo])}/dados/{uf.lower()}/{abr}-c{c:04d}-e{int(cod[tipo]):06d}-u.json"   # o TSE só aceita minúsculas
     tarefas = [(('br', 'presidente'), url('br', 'presidente', 'br')), (('ZZ', 'presidente'), url('zz', 'presidente', 'zz'))]
     tarefas += [((uf, 'presidente'), url(uf.lower(), 'presidente', uf)) for uf in ESTADOS]
     if turno == 2:   # governador: na 1ª leitura testa as 27 UFs; depois, só as que têm 2º turno para governador
@@ -423,7 +423,8 @@ def ciclo_rapido(ano, turno, cod, banco):
                 if r.get('candidatos'):
                     ultimo_bom[k] = r
             else:
-                falhas += 1
+                if _st == 'falha':
+                    falhas += 1   # arquivo que não existe (ex.: governador em UF sem 2º turno) não é falha
                 if k in ultimo_bom:
                     res[k] = ultimo_bom[k]   # TSE falhou agora: mantém o último valor bom, nunca zera
     if ('br', 'presidente') not in res:
